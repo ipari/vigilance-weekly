@@ -156,6 +156,14 @@ main { min-height: 100vh; }
 .backLink { display: inline-block; margin-bottom: 38px; color: var(--green); font-size: 13px; font-weight: 700; }
 .reportLiterature { padding-bottom: 90px; }
 .reportEmpty { background: white; padding: 48px 28px; }
+.reportRegulatory { padding-bottom: 90px; }
+.regulatoryResultList { display: grid; gap: 12px; }
+.regulatoryResult { padding: 24px 26px; background: white; border: 1px solid var(--line); border-radius: 9px; }
+.regulatoryResult > div { display: flex; justify-content: space-between; gap: 18px; color: var(--green); font-size: 11px; font-weight: 750; }
+.regulatoryResult small { color: var(--muted); font-weight: 500; }
+.regulatoryResult h3 { margin: 16px 0 9px; font-size: 17px; }
+.regulatoryResult p { margin: 0 0 15px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.regulatoryResult a { color: var(--green); font-size: 12px; font-weight: 720; }
 
 .cta { padding: 61px max(7.5vw, 28px); background: var(--green-dark); color: white; display: flex; justify-content: space-between; align-items: center; gap: 35px; }
 .cta .eyebrow { color: #8fd0b8; }
@@ -177,6 +185,10 @@ footer .brandMark { width: 27px; height: 27px; }
 .runPanel h2 { margin: 0 0 7px; font: 500 25px Georgia, serif; }
 .runPanel p { margin: 0; color: #e5f4ef; font-size: 13px; line-height: 1.6; }
 .runMeta { display: block; margin-top: 9px; color: #b7e2d4; font-size: 11px; }
+.runProgressBlock { margin-top: 12px; max-width: 560px; }
+.progressTrack { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .2); }
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: white; transition: width .3s ease; }
+.progressLabel { display: block; margin-top: 7px; color: #d5ece4; font-size: 11px; }
 .runAction { min-width: 190px; text-align: right; }
 .runButton { width: 100%; border: 0; border-radius: 7px; background: white; color: var(--green); padding: 13px 16px; font-weight: 760; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
 .runButton:hover:not(:disabled) { transform: translateY(-1px); }

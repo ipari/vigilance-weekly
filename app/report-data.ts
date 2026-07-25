@@ -10,6 +10,16 @@ export type Report = {
   literatureCount: number;
   icsrCount: number;
   status?: string;
+  stage?: string;
+  progress?: number;
+  regulatory?: {
+    source: string;
+    title: string;
+    date: string;
+    description: string;
+    sourceUrl: string;
+    monitor: string;
+  }[];
   literature: {
     pmid?: string;
     tag: string;

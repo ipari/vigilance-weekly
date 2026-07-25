@@ -94,18 +94,59 @@ export default async function ReportPage({
                 <p>{item.summary}</p>
                 <small>{item.meta}</small>
                 {item.pmid && (
-                  <Link
-                    className="inlineDetailLink"
-                    href={`/literature/${item.pmid}`}
-                  >
-                    자세히 보기 →
-                  </Link>
+                  item.sourceUrl ? (
+                    <a
+                      className="inlineDetailLink"
+                      href={item.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      PubMed에서 보기 ↗
+                    </a>
+                  ) : (
+                    <Link
+                      className="inlineDetailLink"
+                      href={`/literature/${item.pmid}`}
+                    >
+                      자세히 보기 →
+                    </Link>
+                  )
                 )}
               </div>
             </article>
           ))}
         </div>
       </section>
+
+      {report.regulatory && report.regulatory.length > 0 && (
+        <section className="section reportRegulatory">
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">REGULATORY INTELLIGENCE</p>
+              <h2>규제정보 검색 결과</h2>
+            </div>
+            <span>{report.regulatory.length}건</span>
+          </div>
+          <div className="regulatoryResultList">
+            {report.regulatory.map((item) => (
+              <article
+                className="regulatoryResult"
+                key={`${item.source}-${item.title}`}
+              >
+                <div>
+                  <span>{item.source}</span>
+                  <small>{item.date} · {item.monitor}</small>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+                <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                  공식 자료 보기 ↗
+                </a>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

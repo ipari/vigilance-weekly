@@ -19,6 +19,10 @@ type MonitoringRun = {
   periodStart: string;
   periodEnd: string;
   status: string;
+  stage: string;
+  progress: number;
+  completedSteps: number;
+  totalSteps: number;
   monitorCount: number;
   createdAt: string;
   completedAt: string | null;
@@ -46,6 +50,35 @@ export default function MonitorManager() {
         .finally(() => setRunLoading(false)),
     ]);
   }, []);
+
+  useEffect(() => {
+    if (run?.status !== "queued" && run?.status !== "running") return;
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch("/api/monitoring-runs", {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+        if (response.ok && payload.run) {
+          setRun(payload.run);
+          if (payload.run.status === "completed") {
+            setRunMessage(
+              `${payload.run.reportLabel} 리포트 작성이 완료되었습니다.`,
+            );
+          } else if (payload.run.status === "failed") {
+            setRunMessage(
+              payload.run.errorMessage ?? "리포트 업데이트에 실패했습니다.",
+            );
+          }
+        }
+      } catch {
+        // 다음 확인 주기에 다시 시도합니다.
+      }
+    }, 2000);
+
+    return () => window.clearInterval(timer);
+  }, [run?.status]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,10 +143,28 @@ export default function MonitorManager() {
             규제정보 업데이트를 즉시 요청합니다.
           </p>
           {!runLoading && run && (
-            <small className="runMeta">
-              마지막 요청: {new Date(run.createdAt).toLocaleString("ko-KR")} ·{" "}
-              {run.reportLabel} · {run.monitorCount}개 약물 · {runStatusLabel(run.status)}
-            </small>
+            <div className="runProgressBlock">
+              <small className="runMeta">
+                마지막 요청: {new Date(run.createdAt).toLocaleString("ko-KR")} ·{" "}
+                {run.reportLabel} · {run.monitorCount}개 약물 · {runStatusLabel(run.status)}
+              </small>
+              <div
+                className="progressTrack"
+                role="progressbar"
+                aria-label="리포트 업데이트 진행률"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={run.progress}
+              >
+                <span style={{ width: `${run.progress}%` }} />
+              </div>
+              <small className="progressLabel">
+                {run.stage} · {run.progress}%
+                {run.totalSteps > 0
+                  ? ` (${run.completedSteps}/${run.totalSteps}단계)`
+                  : ""}
+              </small>
+            </div>
           )}
         </div>
         <div className="runAction">

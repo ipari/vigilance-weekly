@@ -20,6 +20,10 @@ export const monitoringRuns = sqliteTable("monitoring_runs", {
   periodStart: text("period_start").notNull(),
   periodEnd: text("period_end").notNull(),
   status: text("status").notNull().default("queued"),
+  stage: text("stage").notNull().default("실행 대기"),
+  progress: integer("progress").notNull().default(0),
+  completedSteps: integer("completed_steps").notNull().default(0),
+  totalSteps: integer("total_steps").notNull().default(0),
   monitorCount: integer("monitor_count").notNull(),
   monitorSnapshot: text("monitor_snapshot").notNull(),
   triggerType: text("trigger_type").notNull().default("manual"),
@@ -27,4 +31,6 @@ export const monitoringRuns = sqliteTable("monitoring_runs", {
   startedAt: text("started_at"),
   completedAt: text("completed_at"),
   errorMessage: text("error_message"),
+  literatureResults: text("literature_results").notNull().default("[]"),
+  regulatoryResults: text("regulatory_results").notNull().default("[]"),
 });
