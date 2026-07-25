@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getChatGPTUser, chatGPTSignInPath } from "./chatgpt-auth";
 import { reports } from "./report-data";
+import { getStoredReports } from "../db/public-reports";
 
 const regions = [
   { name: "한국", source: "MFDS · KIDS", count: 0, status: "신규 조치 없음" },
@@ -11,7 +12,11 @@ const regions = [
 const literature = reports[0].literature;
 
 export default async function Home() {
-  const user = await getChatGPTUser();
+  const [user, storedReports] = await Promise.all([
+    getChatGPTUser(),
+    getStoredReports(),
+  ]);
+  const archiveReports = [...storedReports, ...reports];
 
   return (
     <main>
@@ -136,12 +141,18 @@ export default async function Home() {
           <span>주차별 보관</span>
         </div>
         <div className="archiveList">
-          {reports.map((item) => (
-            <article className="archiveRow" key={item.week}>
+          {archiveReports.map((item) => (
+            <article className="archiveRow" key={item.slug}>
               <div className="archiveIcon">W</div>
               <div><strong>{item.week}</strong><small>{item.range}</small></div>
               <span className={item.current ? "current" : ""}>
-                {item.current ? "현재 리포트" : "보관됨"}
+                {item.status === "queued"
+                  ? "업데이트 대기"
+                  : item.status === "running"
+                    ? "업데이트 중"
+                    : item.current
+                      ? "현재 리포트"
+                      : "보관됨"}
               </span>
               <Link
                 className="archiveButton"

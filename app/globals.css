@@ -155,6 +155,7 @@ main { min-height: 100vh; }
 .reportHero > p:last-child { color: var(--muted); margin: 0; }
 .backLink { display: inline-block; margin-bottom: 38px; color: var(--green); font-size: 13px; font-weight: 700; }
 .reportLiterature { padding-bottom: 90px; }
+.reportEmpty { background: white; padding: 48px 28px; }
 
 .cta { padding: 61px max(7.5vw, 28px); background: var(--green-dark); color: white; display: flex; justify-content: space-between; align-items: center; gap: 35px; }
 .cta .eyebrow { color: #8fd0b8; }

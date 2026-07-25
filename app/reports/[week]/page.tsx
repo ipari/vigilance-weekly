@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getReport, reports } from "../../report-data";
+import { getStoredReport } from "../../../db/public-reports";
 
 export function generateStaticParams() {
   return reports.map((report) => ({ week: report.slug }));
@@ -12,7 +13,9 @@ export default async function ReportPage({
   params: Promise<{ week: string }>;
 }) {
   const { week } = await params;
-  const report = getReport(week);
+  const storedId = week.startsWith("run-") ? Number(week.slice(4)) : null;
+  const report =
+    storedId !== null ? await getStoredReport(storedId) : getReport(week);
   if (!report) notFound();
 
   return (
@@ -70,6 +73,13 @@ export default async function ReportPage({
           <span>{report.literatureCount}건</span>
         </div>
         <div className="literatureList">
+          {report.literature.length === 0 && (
+            <div className="emptyState reportEmpty">
+              {report.status === "queued" || report.status === "running"
+                ? "현재 감시 대상으로 문헌과 규제정보를 업데이트하고 있습니다."
+                : "이 리포트에는 검토 대상 문헌이 없습니다."}
+            </div>
+          )}
           {report.literature.map((item, index) => (
             <article className="literatureCard" key={item.title}>
               <div className="itemNumber">0{index + 1}</div>

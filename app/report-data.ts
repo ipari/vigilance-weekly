@@ -9,6 +9,7 @@ export type Report = {
   regulationCount: number;
   literatureCount: number;
   icsrCount: number;
+  status?: string;
   literature: {
     pmid?: string;
     tag: string;
