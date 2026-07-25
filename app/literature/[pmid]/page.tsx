@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { reports } from "../../report-data";
 
-const currentLiterature = reports[0].literature;
+const currentLiterature = reports.flatMap((report) => report.literature);
 
 export function generateStaticParams() {
   return currentLiterature

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getChatGPTUser, chatGPTSignInPath } from "./chatgpt-auth";
-import { reports } from "./report-data";
+import { emptyReport, reports } from "./report-data";
 import { getStoredReports } from "../db/public-reports";
 
 const regions = [
@@ -17,7 +17,7 @@ export default async function Home() {
   const latestStoredReport = storedReports.find(
     (report) => report.status === "completed",
   );
-  const currentReport = latestStoredReport ?? reports[0];
+  const currentReport = latestStoredReport ?? emptyReport;
   const literature = currentReport.literature;
   const archiveReports = [...storedReports, ...reports].map((report) => ({
     ...report,
@@ -117,7 +117,7 @@ export default async function Home() {
           <span>우선순위순</span>
         </div>
         <div className="literatureList">
-          {literature.map((item, index) => (
+          {literature.length ? literature.map((item, index) => (
             <Link
               className="literatureCard literatureLink"
               href={item.sourceUrl ?? `/literature/${item.pmid}`}
@@ -140,7 +140,9 @@ export default async function Home() {
               </div>
               <span className="arrow">↗</span>
             </Link>
-          ))}
+          )) : (
+            <div className="emptyState">아직 검토할 문헌이 없습니다.</div>
+          )}
         </div>
       </section>
 
@@ -153,7 +155,7 @@ export default async function Home() {
           <span>주차별 보관</span>
         </div>
         <div className="archiveList">
-          {archiveReports.map((item) => (
+          {archiveReports.length ? archiveReports.map((item) => (
             <article className="archiveRow" key={item.slug}>
               <div className="archiveIcon">W</div>
               <div><strong>{item.week}</strong><small>{item.range}</small></div>
@@ -174,7 +176,9 @@ export default async function Home() {
                 보기
               </Link>
             </article>
-          ))}
+          )) : (
+            <div className="emptyState">아직 생성된 리포트가 없습니다.</div>
+          )}
         </div>
       </section>
 
