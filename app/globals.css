@@ -126,7 +126,13 @@ main { min-height: 100vh; }
 .archiveRow small { color: var(--muted); }
 .archiveRow > span { color: var(--muted); font-size: 11px; }
 .archiveRow > span.current { color: var(--green); background: var(--mint); padding: 5px 8px; border-radius: 4px; }
-.archiveRow button { border: 1px solid var(--line); background: white; border-radius: 6px; padding: 8px 13px; cursor: pointer; }
+.archiveButton { border: 1px solid var(--line); background: white; border-radius: 6px; padding: 8px 13px; cursor: pointer; }
+.archiveButton:hover { border-color: var(--green); color: var(--green); }
+.reportHero { padding: 72px max(7.5vw, 28px) 58px; background: linear-gradient(120deg, #f7faf7 40%, #edf4ef); border-bottom: 1px solid var(--line); }
+.reportHero h1 { margin: 0 0 12px; font: 500 clamp(42px, 5vw, 66px) Georgia, serif; letter-spacing: -.04em; }
+.reportHero > p:last-child { color: var(--muted); margin: 0; }
+.backLink { display: inline-block; margin-bottom: 38px; color: var(--green); font-size: 13px; font-weight: 700; }
+.reportLiterature { padding-bottom: 90px; }
 
 .cta { padding: 61px max(7.5vw, 28px); background: var(--green-dark); color: white; display: flex; justify-content: space-between; align-items: center; gap: 35px; }
 .cta .eyebrow { color: #8fd0b8; }

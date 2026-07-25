@@ -99,8 +99,6 @@ export default function MonitorManager() {
   }
 
   const activeMonitorCount = monitors.filter((monitor) => monitor.active).length;
-  const activeRun = run?.status === "queued" || run?.status === "running";
-
   return (
     <>
       <section className="runPanel" aria-labelledby="weekly-run-title">
@@ -123,13 +121,9 @@ export default function MonitorManager() {
             className="runButton"
             type="button"
             onClick={runWeeklyUpdate}
-            disabled={loading || running || activeMonitorCount === 0 || activeRun}
+            disabled={loading || running || activeMonitorCount === 0}
           >
-            {running
-              ? "요청 중…"
-              : activeRun
-                ? "업데이트 진행 중"
-                : "지금 업데이트 실행"}
+            {running ? "업데이트 중…" : "리포트 업데이트"}
           </button>
           {runMessage && (
             <p className="runMessage" role="status" aria-live="polite">

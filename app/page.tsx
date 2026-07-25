@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getChatGPTUser, chatGPTSignInPath } from "./chatgpt-auth";
+import { reports } from "./report-data";
 
 const regions = [
   { name: "한국", source: "MFDS · KIDS", count: 0, status: "신규 조치 없음" },
@@ -32,12 +33,6 @@ const literature = [
       "효과 및 출혈 결과에서 유의한 차이가 없었습니다. 특별 환자군의 누적 근거로 관리합니다.",
     meta: "PMID 42412715 · 관찰연구",
   },
-];
-
-const archive = [
-  { week: "2026년 31주차", range: "7월 18일 — 7월 25일", current: true },
-  { week: "2026년 30주차", range: "7월 11일 — 7월 17일", current: false },
-  { week: "2026년 29주차", range: "7월 4일 — 7월 10일", current: false },
 ];
 
 export default async function Home() {
@@ -161,14 +156,20 @@ export default async function Home() {
           <span>주차별 보관</span>
         </div>
         <div className="archiveList">
-          {archive.map((item) => (
+          {reports.map((item) => (
             <article className="archiveRow" key={item.week}>
               <div className="archiveIcon">W</div>
               <div><strong>{item.week}</strong><small>{item.range}</small></div>
               <span className={item.current ? "current" : ""}>
                 {item.current ? "현재 리포트" : "보관됨"}
               </span>
-              <button type="button" aria-label={`${item.week} 리포트 보기`}>보기</button>
+              <Link
+                className="archiveButton"
+                href={`/reports/${item.slug}`}
+                aria-label={`${item.week} 리포트 보기`}
+              >
+                보기
+              </Link>
             </article>
           ))}
         </div>
