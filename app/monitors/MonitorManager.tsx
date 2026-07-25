@@ -278,8 +278,7 @@ export default function MonitorManager() {
                 className="deleteReportButton"
                 disabled={
                   deletingId === item.id ||
-                  item.status === "running" ||
-                  (item.status === "queued" && item.totalSteps > 0)
+                  item.status === "running"
                 }
                 onClick={() => deleteReport(item)}
               >

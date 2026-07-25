@@ -133,10 +133,7 @@ export async function DELETE(request: Request) {
     if (!target) {
       return Response.json({ error: "리포트를 찾을 수 없습니다." }, { status: 404 });
     }
-    if (
-      target.status === "running" ||
-      (target.status === "queued" && target.totalSteps > 0)
-    ) {
+    if (target.status === "running") {
       return Response.json(
         { error: "진행 중인 리포트는 완료 또는 실패 후 삭제할 수 있습니다." },
         { status: 409 },
