@@ -9,14 +9,20 @@ const regions = [
   { name: "유럽", source: "EMA · PRAC", count: 0, status: "신규 조치 없음" },
 ];
 
-const literature = reports[0].literature;
-
 export default async function Home() {
   const [user, storedReports] = await Promise.all([
     getChatGPTUser(),
     getStoredReports(),
   ]);
-  const archiveReports = [...storedReports, ...reports];
+  const latestStoredReport = storedReports.find(
+    (report) => report.status === "completed",
+  );
+  const currentReport = latestStoredReport ?? reports[0];
+  const literature = currentReport.literature;
+  const archiveReports = [...storedReports, ...reports].map((report) => ({
+    ...report,
+    current: report.slug === currentReport.slug,
+  }));
 
   return (
     <main>
@@ -38,7 +44,7 @@ export default async function Home() {
 
       <section className="hero" id="report">
         <div>
-          <p className="eyebrow">2026년 31주차 · 7월 25일 업데이트</p>
+          <p className="eyebrow">{currentReport.week} · {currentReport.updatedAt} 업데이트</p>
           <h1>약물 안전성의 변화를<br />한눈에 확인하세요.</h1>
           <p className="heroCopy">
             한국·미국·유럽의 규제정보와 주요 문헌을 매주 모니터링하고,
@@ -56,23 +62,27 @@ export default async function Home() {
       <section className="summaryGrid" aria-label="이번 주 요약">
         <article className="summaryCard primary">
           <span>모니터링 대상</span>
-          <strong>Apixaban</strong>
-          <small>Eliquis · 아픽사반 · 엘리퀴스</small>
+          <strong>{currentReport.target}</strong>
+          <small>{currentReport.aliases}</small>
         </article>
         <article className="summaryCard">
           <span>신규 규제조치</span>
-          <strong>0<em>건</em></strong>
-          <small className="good">즉시 조치 대상 없음</small>
+          <strong>{currentReport.regulationCount}<em>건</em></strong>
+          <small className={currentReport.regulationCount ? "warn" : "good"}>
+            {currentReport.regulationCount ? "검토 필요" : "즉시 조치 대상 없음"}
+          </small>
         </article>
         <article className="summaryCard">
           <span>검토 문헌</span>
-          <strong>3<em>건</em></strong>
+          <strong>{currentReport.literatureCount}<em>건</em></strong>
           <small>최근 공개 문헌 포함</small>
         </article>
         <article className="summaryCard">
           <span>ICSR 후보</span>
-          <strong>1<em>건</em></strong>
-          <small className="warn">원문 검토 필요</small>
+          <strong>{currentReport.icsrCount}<em>건</em></strong>
+          <small className={currentReport.icsrCount ? "warn" : "good"}>
+            {currentReport.icsrCount ? "원문 검토 필요" : "신규 후보 없음"}
+          </small>
         </article>
       </section>
 
@@ -110,7 +120,9 @@ export default async function Home() {
           {literature.map((item, index) => (
             <Link
               className="literatureCard literatureLink"
-              href={`/literature/${item.pmid}`}
+              href={item.sourceUrl ?? `/literature/${item.pmid}`}
+              target={item.sourceUrl ? "_blank" : undefined}
+              rel={item.sourceUrl ? "noreferrer" : undefined}
               key={item.title}
               aria-label={`${item.title} 상세 정보 보기`}
             >
@@ -180,7 +192,7 @@ export default async function Home() {
       <footer>
         <div className="brand"><span className="brandMark">V</span><span>Vigilance Weekly</span></div>
         <p>업무지원용 모니터링 결과이며, 최종 규제 판단에는 담당자의 검토가 필요합니다.</p>
-        <span>Updated 2026.07.25</span>
+        <span>Updated {currentReport.updatedAt}</span>
       </footer>
     </main>
   );

@@ -176,7 +176,7 @@ footer .brand { color: var(--ink); font-size: 14px; }
 footer .brandMark { width: 27px; height: 27px; }
 
 .managerShell { min-height: 100vh; background: #f5f7f4; }
-.managerMain { max-width: 1050px; margin: 0 auto; padding: 66px 28px 100px; }
+.managerMain { max-width: 1240px; margin: 0 auto; padding: 66px 28px 100px; }
 .managerHeader { display: flex; justify-content: space-between; align-items: start; margin-bottom: 34px; }
 .managerHeader h1 { font: 500 42px Georgia, serif; margin: 6px 0 10px; }
 .managerHeader p { color: var(--muted); margin: 0; }
@@ -214,6 +214,39 @@ footer .brandMark { width: 27px; height: 27px; }
 .monitorItem small { color: #8b9591; grid-column: 1; }
 .activePill { grid-column: 2; grid-row: 1 / 3; align-self: center; color: var(--green); background: var(--mint); border-radius: 20px; padding: 6px 9px; font-size: 10px; font-weight: 750; }
 .emptyState { color: var(--muted); font-size: 13px; border: 1px dashed #cbd5d0; padding: 28px; text-align: center; border-radius: 8px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.targetPanel, .reportAdminPanel { margin-top: 18px; }
+.panelHeadingRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.panelHeadingRow .panelIntro { margin: 7px 0 0; }
+.monitorSearch input { width: min(320px, 34vw); padding: 10px 13px; border: 1px solid #ccd5d0; border-radius: 7px; background: #f8faf8; outline: none; }
+.monitorSearch input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13,107,79,.08); background: white; }
+.quickMonitorForm { display: grid; grid-template-columns: 1.1fr 1fr 1.2fr 1fr auto; gap: 10px; margin: 22px 0 16px; padding: 16px; background: #f5f8f6; border: 1px solid var(--line); border-radius: 8px; align-items: end; }
+.quickMonitorForm label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 750; }
+.quickMonitorForm input, .quickMonitorForm select { min-width: 0; width: 100%; height: 39px; padding: 8px 10px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; outline: none; }
+.quickMonitorForm input:focus, .quickMonitorForm select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13,107,79,.08); }
+.quickMonitorForm button { height: 39px; padding: 0 16px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 720; cursor: pointer; white-space: nowrap; }
+.monitorTableWrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.monitorTable { width: 100%; border-collapse: collapse; background: white; font-size: 12px; }
+.monitorTable th { padding: 11px 14px; color: var(--muted); background: #f4f7f5; border-bottom: 1px solid var(--line); text-align: left; font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
+.monitorTable td { padding: 14px; border-bottom: 1px solid #e8edea; color: var(--muted); vertical-align: middle; }
+.monitorTable tr:last-child td { border-bottom: 0; }
+.monitorTable td:first-child { color: var(--ink); min-width: 150px; }
+.monitorTable .activePill { display: inline-block; }
+.pagination { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 14px; font-size: 11px; color: var(--muted); }
+.pagination button { padding: 7px 11px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
+.pagination button:disabled { opacity: .45; cursor: not-allowed; }
+.adminReportList { display: grid; margin-top: 20px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.adminReportRow { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: center; gap: 18px; padding: 15px 17px; border-bottom: 1px solid var(--line); background: white; }
+.adminReportRow:last-child { border-bottom: 0; }
+.adminReportRow > div { display: grid; gap: 5px; }
+.adminReportRow small { color: var(--muted); font-size: 11px; }
+.adminReportRow > a { color: var(--green); font-size: 12px; font-weight: 720; }
+.runStatus { min-width: 67px; padding: 5px 8px; border-radius: 999px; background: #edf1ef; color: var(--muted); font-size: 10px; font-weight: 760; text-align: center; }
+.runStatus.completed { color: var(--green); background: var(--mint); }
+.runStatus.failed { color: #9f3e35; background: #f8e6e3; }
+.runStatus.running, .runStatus.queued { color: #94601f; background: #f7ead8; }
+.deleteReportButton { padding: 7px 10px; border: 1px solid #e3c6c1; border-radius: 6px; background: white; color: #a4473d; cursor: pointer; font-size: 11px; }
+.deleteReportButton:disabled { opacity: .42; cursor: not-allowed; }
 
 @media (max-width: 800px) {
   .nav > a:not(.loginButton) { display: none; }
@@ -229,6 +262,12 @@ footer .brandMark { width: 27px; height: 27px; }
   .userChip { text-align: left; }
   .cta { flex-direction: column; align-items: flex-start; }
   footer { flex-direction: column; align-items: flex-start; }
+  .quickMonitorForm { grid-template-columns: 1fr 1fr; }
+  .quickMonitorForm button { grid-column: 1 / -1; }
+  .adminReportRow { grid-template-columns: 1fr auto auto; }
+  .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }
+  .adminReportRow > a { grid-column: 2; }
+  .adminReportRow .deleteReportButton { grid-column: 3; grid-row: 1 / 3; }
 }
 @media (max-width: 520px) {
   .topbar { height: 67px; }
@@ -243,4 +282,12 @@ footer .brandMark { width: 27px; height: 27px; }
   .archiveRow > span { display: none; }
   .literatureFacts { grid-template-columns: 1fr; }
   .literatureFacts div:nth-child(odd), .literatureFacts div:nth-child(even) { padding: 15px 0; border-left: 0; }
+  .panelHeadingRow { flex-direction: column; }
+  .monitorSearch, .monitorSearch input { width: 100%; }
+  .quickMonitorForm { grid-template-columns: 1fr; }
+  .quickMonitorForm button { grid-column: auto; }
+  .adminReportRow { grid-template-columns: 1fr auto; gap: 10px; }
+  .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }
+  .adminReportRow > a { grid-column: 1; grid-row: 2; }
+  .adminReportRow .deleteReportButton { grid-column: 2; grid-row: 2; }
 }

@@ -79,15 +79,16 @@ export async function GET() {
   }
 
   try {
-    const [latestRun] = await getDb()
+    const rows = await getDb()
       .select()
       .from(monitoringRuns)
       .where(eq(monitoringRuns.ownerEmail, user.email))
       .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
-      .limit(1);
+      .limit(50);
 
     return Response.json({
-      run: latestRun ? serializeRun(latestRun) : null,
+      run: rows[0] ? serializeRun(rows[0]) : null,
+      runs: rows.map(serializeRun),
     });
   } catch (error) {
     return Response.json(
@@ -96,6 +97,63 @@ export async function GET() {
           error instanceof Error
             ? error.message
             : "실행 상태를 불러오지 못했습니다.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) {
+    return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  try {
+    const id = Number(new URL(request.url).searchParams.get("id"));
+    if (!Number.isInteger(id) || id < 1) {
+      return Response.json({ error: "삭제할 리포트가 올바르지 않습니다." }, { status: 400 });
+    }
+
+    const [target] = await getDb()
+      .select({
+        id: monitoringRuns.id,
+        status: monitoringRuns.status,
+      })
+      .from(monitoringRuns)
+      .where(
+        and(
+          eq(monitoringRuns.id, id),
+          eq(monitoringRuns.ownerEmail, user.email),
+        ),
+      )
+      .limit(1);
+
+    if (!target) {
+      return Response.json({ error: "리포트를 찾을 수 없습니다." }, { status: 404 });
+    }
+    if (target.status === "queued" || target.status === "running") {
+      return Response.json(
+        { error: "진행 중인 리포트는 완료 또는 실패 후 삭제할 수 있습니다." },
+        { status: 409 },
+      );
+    }
+
+    await getDb()
+      .delete(monitoringRuns)
+      .where(
+        and(
+          eq(monitoringRuns.id, id),
+          eq(monitoringRuns.ownerEmail, user.email),
+        ),
+      );
+
+    return Response.json({ deleted: true, id });
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error instanceof Error ? error.message : "리포트를 삭제하지 못했습니다.",
       },
       { status: 500 },
     );

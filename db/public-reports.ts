@@ -41,9 +41,7 @@ export async function getStoredReports(): Promise<Report[]> {
       .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
       .limit(30);
 
-    return rows
-      .filter((run) => run.reportSequence > 1)
-      .map(toPublicReport);
+    return rows.map(toPublicReport);
   } catch {
     return [];
   }
