@@ -16,6 +16,7 @@ export const monitoringRuns = sqliteTable("monitoring_runs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerEmail: text("owner_email").notNull(),
   weekKey: text("week_key").notNull(),
+  reportSequence: integer("report_sequence").notNull().default(1),
   periodStart: text("period_start").notNull(),
   periodEnd: text("period_end").notNull(),
   status: text("status").notNull().default("queued"),

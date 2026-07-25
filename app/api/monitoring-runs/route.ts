@@ -1,11 +1,9 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { monitoringRuns, monitors } from "../../../db/schema";
 
 export const dynamic = "force-dynamic";
-
-const ACTIVE_RUN_STATUSES = ["queued", "running"];
 
 function currentSeoulWeek(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -51,6 +49,8 @@ function serializeRun(run: typeof monitoringRuns.$inferSelect) {
   return {
     id: run.id,
     weekKey: run.weekKey,
+    reportSequence: run.reportSequence,
+    reportLabel: `${formatWeekLabel(run.weekKey)}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`,
     periodStart: run.periodStart,
     periodEnd: run.periodEnd,
     status: run.status,
@@ -61,6 +61,11 @@ function serializeRun(run: typeof monitoringRuns.$inferSelect) {
     completedAt: run.completedAt,
     errorMessage: run.errorMessage,
   };
+}
+
+function formatWeekLabel(weekKey: string) {
+  const [year, week] = weekKey.split("-W");
+  return `${year}년 ${Number(week)}주차`;
 }
 
 export async function GET() {
@@ -123,31 +128,23 @@ export async function POST() {
     }
 
     const period = currentSeoulWeek();
-    const [existingRun] = await db
-      .select()
+    const [weekRuns] = await db
+      .select({ count: count() })
       .from(monitoringRuns)
       .where(
         and(
           eq(monitoringRuns.ownerEmail, user.email),
           eq(monitoringRuns.weekKey, period.weekKey),
-          inArray(monitoringRuns.status, ACTIVE_RUN_STATUSES),
         ),
-      )
-      .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
-      .limit(1);
-
-    if (existingRun) {
-      return Response.json({
-        run: serializeRun(existingRun),
-        duplicate: true,
-      });
-    }
+      );
+    const reportSequence = Number(weekRuns?.count ?? 0) + 1;
 
     const [run] = await db
       .insert(monitoringRuns)
       .values({
         ownerEmail: user.email,
         ...period,
+        reportSequence,
         status: "queued",
         monitorCount: activeMonitors.length,
         monitorSnapshot: JSON.stringify(activeMonitors),
@@ -156,7 +153,7 @@ export async function POST() {
       .returning();
 
     return Response.json(
-      { run: serializeRun(run), duplicate: false },
+      { run: serializeRun(run) },
       { status: 202 },
     );
   } catch (error) {

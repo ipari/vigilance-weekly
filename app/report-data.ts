@@ -10,11 +10,19 @@ export type Report = {
   literatureCount: number;
   icsrCount: number;
   literature: {
+    pmid?: string;
     tag: string;
     level: "낮음" | "중간";
     title: string;
     summary: string;
     meta: string;
+    originalTitle?: string;
+    authors?: string;
+    journal?: string;
+    doi?: string;
+    published?: string;
+    assessment?: string;
+    sourceUrl?: string;
   }[];
 };
 
@@ -32,28 +40,61 @@ export const reports: Report[] = [
     icsrCount: 1,
     literature: [
       {
+        pmid: "42299724",
         tag: "ICSR 검토",
         level: "중간",
         title: "Apixaban 관련 혈관부종 증례",
         summary:
           "혀와 사지의 혈관부종 증례입니다. 원문 확보 후 유효성, 중복 및 예상성 평가가 필요합니다.",
         meta: "PMID 42299724 · 증례보고",
+        originalTitle:
+          "Apixaban-Induced Tongue and Extremity Angioedema: A Case Report",
+        authors:
+          "Safa Souissi, Khouloud Berrim, Imen Aouinti, Fatma Zgolli, Sarrah Kastalli, Sihem El Aidli",
+        journal: "American Journal of Therapeutics",
+        doi: "10.1097/MJT.0000000000002152",
+        published: "2026년 6월 17일 온라인 공개",
+        assessment:
+          "Apixaban 투여와 혈관부종 발생의 시간적 연관성, 병용약물, 재투여 여부를 확인하고 예상성 및 중대성을 평가해야 합니다.",
+        sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/42299724/",
       },
       {
+        pmid: "42392108",
         tag: "누적 평가",
         level: "중간",
         title: "소아 VTE 무작위 임상시험",
         summary:
           "표준치료와 유사한 안전성 결과를 보였습니다. 중대한 사례의 데이터베이스 중복 확인을 권고합니다.",
         meta: "PMID 42392108 · 임상시험",
+        originalTitle:
+          "Apixaban for the treatment of venous thromboembolic events in paediatric patients: an open-label, multicentre, randomised, controlled descriptive trial",
+        authors:
+          "Leonardo R Brandão, Joseph Driscoll, Jane W Newburger 외 Pediatric Apixaban VTE Study Investigators",
+        journal: "The Lancet Haematology",
+        doi: "10.1016/S2352-3026(26)00107-9",
+        published: "2026년 7월",
+        assessment:
+          "소아 VTE 환자에서 apixaban과 표준치료의 유효성·안전성 결과가 유사했습니다. 중대한 이상사례의 개별 증례 중복 여부를 확인합니다.",
+        sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/42392108/",
       },
       {
+        pmid: "42412715",
         tag: "근거 보관",
         level: "낮음",
         title: "복막투석 환자의 apixaban 대 warfarin",
         summary:
           "효과 및 출혈 결과에서 유의한 차이가 없었습니다. 특별 환자군의 누적 근거로 관리합니다.",
         meta: "PMID 42412715 · 관찰연구",
+        originalTitle:
+          "Safety and Effectiveness of Apixaban Versus Warfarin in Peritoneal Dialysis Patients with Newly Diagnosed Nonvalvular Atrial Fibrillation",
+        authors:
+          "Mingyue He, Kevin F Erickson, Hania Kassem, Maria E Montez-Rath, Tara I Chang, Wolfgang C Winkelmayer, Jingbo Niu",
+        journal: "American Journal of Nephrology",
+        doi: "10.1159/000553428",
+        published: "2026년 7월 7일 온라인 공개",
+        assessment:
+          "복막투석 환자에서 apixaban과 warfarin 간 혈전색전·출혈 결과에 통계적으로 유의한 차이가 없었습니다. 특별 환자군의 누적 근거로 보관합니다.",
+        sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/42412715/",
       },
     ],
   },

@@ -83,6 +83,14 @@ export default async function ReportPage({
                 <h3>{item.title}</h3>
                 <p>{item.summary}</p>
                 <small>{item.meta}</small>
+                {item.pmid && (
+                  <Link
+                    className="inlineDetailLink"
+                    href={`/literature/${item.pmid}`}
+                  >
+                    자세히 보기 →
+                  </Link>
+                )}
               </div>
             </article>
           ))}

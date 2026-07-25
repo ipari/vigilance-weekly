@@ -8,32 +8,7 @@ const regions = [
   { name: "유럽", source: "EMA · PRAC", count: 0, status: "신규 조치 없음" },
 ];
 
-const literature = [
-  {
-    tag: "ICSR 검토",
-    level: "중간",
-    title: "Apixaban 관련 혈관부종 증례",
-    summary:
-      "혀와 사지의 혈관부종 증례입니다. 원문 확보 후 유효성, 중복 및 예상성 평가가 필요합니다.",
-    meta: "PMID 42299724 · 증례보고",
-  },
-  {
-    tag: "누적 평가",
-    level: "중간",
-    title: "소아 VTE 무작위 임상시험",
-    summary:
-      "표준치료와 유사한 안전성 결과를 보였습니다. 중대한 사례의 데이터베이스 중복 확인을 권고합니다.",
-    meta: "PMID 42392108 · 임상시험",
-  },
-  {
-    tag: "근거 보관",
-    level: "낮음",
-    title: "복막투석 환자의 apixaban 대 warfarin",
-    summary:
-      "효과 및 출혈 결과에서 유의한 차이가 없었습니다. 특별 환자군의 누적 근거로 관리합니다.",
-    meta: "PMID 42412715 · 관찰연구",
-  },
-];
+const literature = reports[0].literature;
 
 export default async function Home() {
   const user = await getChatGPTUser();
@@ -128,7 +103,12 @@ export default async function Home() {
         </div>
         <div className="literatureList">
           {literature.map((item, index) => (
-            <article className="literatureCard" key={item.title}>
+            <Link
+              className="literatureCard literatureLink"
+              href={`/literature/${item.pmid}`}
+              key={item.title}
+              aria-label={`${item.title} 상세 정보 보기`}
+            >
               <div className="itemNumber">0{index + 1}</div>
               <div className="literatureBody">
                 <div className="badges">
@@ -142,7 +122,7 @@ export default async function Home() {
                 <small>{item.meta}</small>
               </div>
               <span className="arrow">↗</span>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

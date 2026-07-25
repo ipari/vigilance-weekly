@@ -1,0 +1,1 @@
+ALTER TABLE `monitoring_runs` ADD `report_sequence` integer DEFAULT 1 NOT NULL;

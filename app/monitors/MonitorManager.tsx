@@ -14,6 +14,8 @@ type Monitor = {
 type MonitoringRun = {
   id: number;
   weekKey: string;
+  reportSequence: number;
+  reportLabel: string;
   periodStart: string;
   periodEnd: string;
   status: string;
@@ -87,9 +89,7 @@ export default function MonitorManager() {
 
       setRun(payload.run);
       setRunMessage(
-        payload.duplicate
-          ? "이번 주 업데이트가 이미 진행 중입니다."
-          : "업데이트 요청을 접수했습니다. 현재 약물 목록으로 곧 실행됩니다.",
+        `${payload.run.reportLabel} 리포트를 새로 추가했습니다. 현재 약물 목록으로 업데이트를 시작합니다.`,
       );
     } catch {
       setRunMessage("네트워크 오류로 업데이트를 시작하지 못했습니다.");
@@ -112,7 +112,7 @@ export default function MonitorManager() {
           {!runLoading && run && (
             <small className="runMeta">
               마지막 요청: {new Date(run.createdAt).toLocaleString("ko-KR")} ·{" "}
-              {run.monitorCount}개 약물 · {runStatusLabel(run.status)}
+              {run.reportLabel} · {run.monitorCount}개 약물 · {runStatusLabel(run.status)}
             </small>
           )}
         </div>

@@ -47,7 +47,8 @@ main { min-height: 100vh; }
 .nav > a:not(.loginButton) { color: var(--muted); }
 .loginButton {
   background: var(--ink); color: white; padding: 11px 18px;
-  border-radius: 8px; font-weight: 650;
+  border-radius: 8px; font-weight: 650; min-height: 42px;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1;
 }
 
 .hero {
@@ -107,6 +108,9 @@ main { min-height: 100vh; }
 
 .literatureList { display: grid; }
 .literatureCard { display: grid; grid-template-columns: 64px 1fr auto; gap: 24px; padding: 29px 5px; border-bottom: 1px solid var(--line); align-items: start; }
+.literatureLink { transition: background-color .16s ease, padding .16s ease; }
+.literatureLink:hover { background: rgba(223, 241, 233, .45); padding-left: 14px; padding-right: 14px; }
+.literatureLink:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .itemNumber { color: #9aa39f; font: 500 13px var(--font-geist-mono); padding-top: 5px; }
 .badges { display: flex; gap: 8px; margin-bottom: 12px; }
 .badges span { color: var(--green); background: var(--mint); border-radius: 4px; padding: 5px 8px; font-size: 10px; font-weight: 750; }
@@ -116,6 +120,24 @@ main { min-height: 100vh; }
 .literatureCard p { color: var(--muted); line-height: 1.65; margin: 0 0 13px; max-width: 780px; font-size: 14px; }
 .literatureCard small { color: #8a9490; font-family: var(--font-geist-mono); }
 .arrow { color: var(--green); font-size: 20px; }
+.inlineDetailLink { display: block; width: fit-content; margin-top: 15px; color: var(--green); font-size: 12px; font-weight: 720; }
+.literatureDetail { max-width: 900px; margin: 0 auto; padding: 72px 28px 110px; }
+.literatureDetail .backLink { margin-bottom: 42px; }
+.literatureDetail .eyebrow { margin: 24px 0 12px; }
+.literatureDetail h1 { max-width: 760px; margin: 0; font: 500 clamp(38px, 5vw, 62px)/1.14 Georgia, serif; letter-spacing: -.04em; }
+.originalTitle { max-width: 760px; margin: 22px 0 38px; color: var(--muted); font: italic 18px/1.6 Georgia, serif; }
+.literatureFacts { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 46px; border-top: 1px solid var(--ink); }
+.literatureFacts div { display: grid; grid-template-columns: 82px 1fr; gap: 12px; padding: 17px 0; border-bottom: 1px solid var(--line); }
+.literatureFacts div:nth-child(odd) { padding-right: 24px; }
+.literatureFacts div:nth-child(even) { padding-left: 24px; border-left: 1px solid var(--line); }
+.literatureFacts dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+.literatureFacts dd { margin: 0; font-size: 13px; line-height: 1.55; }
+.detailSection { margin-top: 24px; padding: 27px 30px; background: white; border: 1px solid var(--line); border-radius: 9px; }
+.detailSection.assessment { background: var(--mint); border-color: #c6e3d7; }
+.detailSection h2 { margin: 0 0 12px; font-size: 17px; }
+.detailSection p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
+.pubmedButton { display: inline-flex; align-items: center; gap: 22px; margin-top: 28px; padding: 15px 19px; color: white; background: var(--green); border-radius: 7px; font-weight: 750; font-size: 13px; }
+.pubmedButton:hover { background: var(--green-dark); }
 
 .archiveSection { padding-bottom: 90px; }
 .archiveList { background: white; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
@@ -206,4 +228,6 @@ footer .brandMark { width: 27px; height: 27px; }
   .literatureCard .arrow { display: none; }
   .archiveRow { grid-template-columns: 40px 1fr auto; }
   .archiveRow > span { display: none; }
+  .literatureFacts { grid-template-columns: 1fr; }
+  .literatureFacts div:nth-child(odd), .literatureFacts div:nth-child(even) { padding: 15px 0; border-left: 0; }
 }
