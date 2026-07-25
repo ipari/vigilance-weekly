@@ -194,6 +194,12 @@ export default function MonitorManager() {
               <small className="progressLabel">
                 {run.stage} · {run.progress}%{run.totalSteps > 0 ? ` (${run.completedSteps}/${run.totalSteps}단계)` : ""}
               </small>
+              {run.errorMessage && (
+                <small className="runWarning">
+                  {run.status === "completed" ? "일부 수집 안내" : "실패 사유"}:{" "}
+                  {run.errorMessage}
+                </small>
+              )}
             </div>
           )}
         </div>
@@ -270,6 +276,11 @@ export default function MonitorManager() {
               <div>
                 <strong>{item.reportLabel}</strong>
                 <small>{item.periodStart} — {item.periodEnd} · {item.monitorCount}개 약물</small>
+                {item.errorMessage && (
+                  <small className="reportRunError">
+                    {item.status === "completed" ? "일부 수집 실패" : item.errorMessage}
+                  </small>
+                )}
               </div>
               <span className={`runStatus ${item.status}`}>{runStatusLabel(item.status)}</span>
               <a href={`/reports/run-${item.id}`}>보기</a>

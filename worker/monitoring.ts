@@ -137,8 +137,10 @@ async function executeMonitoringRun(
 ) {
   const literature: LiteratureResult[] = [];
   const regulatory: RegulatoryResult[] = [];
+  const failures: string[] = [];
   const totalSteps = monitors.length * 2;
   let completedSteps = 0;
+  let successfulSteps = 0;
 
   try {
     await updateRun(env, runId, {
@@ -155,15 +157,31 @@ async function executeMonitoringRun(
         progress: percent(completedSteps, totalSteps),
         completedSteps,
       });
-      literature.push(...(await fetchPubMed(monitor, period)));
+      try {
+        literature.push(...(await fetchPubMed(monitor, period)));
+        successfulSteps += 1;
+      } catch (error) {
+        failures.push(`${monitor.ingredient} PubMed: ${errorMessage(error)}`);
+      }
       completedSteps += 1;
+      await delay(400);
       await updateRun(env, runId, {
         stage: `${monitor.ingredient} FDA 규제정보 검색`,
         progress: percent(completedSteps, totalSteps),
         completedSteps,
       });
-      regulatory.push(...(await fetchFdaRecalls(monitor, period)));
+      try {
+        regulatory.push(...(await fetchFdaRecalls(monitor, period)));
+        successfulSteps += 1;
+      } catch (error) {
+        failures.push(`${monitor.ingredient} FDA: ${errorMessage(error)}`);
+      }
       completedSteps += 1;
+      await delay(400);
+    }
+
+    if (successfulSteps === 0 && failures.length > 0) {
+      throw new Error(failures.join(" | "));
     }
 
     const uniqueLiterature = uniqueBy(literature, (item) => item.pmid);
@@ -172,18 +190,26 @@ async function executeMonitoringRun(
       (item) => `${item.source}:${item.title}:${item.date}`,
     );
 
+    const warningMessage = failures.length > 0 ? failures.join(" | ") : null;
+    const completedStage =
+      failures.length > 0
+        ? `리포트 작성 완료 · 일부 수집 실패 ${failures.length}건`
+        : "리포트 작성 완료";
+
     await env.DB.prepare(
       `UPDATE monitoring_runs
-       SET status = 'completed', stage = '리포트 작성 완료',
+       SET status = 'completed', stage = ?,
            progress = 100, completed_steps = ?, completed_at = ?,
-           literature_results = ?, regulatory_results = ?, error_message = NULL
+           literature_results = ?, regulatory_results = ?, error_message = ?
        WHERE id = ?`,
     )
       .bind(
+        completedStage,
         totalSteps,
         new Date().toISOString(),
         JSON.stringify(uniqueLiterature),
         JSON.stringify(uniqueRegulatory),
+        warningMessage,
         runId,
       )
       .run();
@@ -195,7 +221,7 @@ async function executeMonitoringRun(
        WHERE id = ?`,
     )
       .bind(
-        error instanceof Error ? error.message : "알 수 없는 수집 오류",
+        errorMessage(error),
         new Date().toISOString(),
         runId,
       )
@@ -227,9 +253,11 @@ async function fetchPubMed(
     tool: "vigilance-weekly",
   }).toString();
 
-  const searchResponse = await fetch(searchUrl, {
-    headers: { accept: "application/json" },
-  });
+  const searchResponse = await fetchWithRetry(
+    searchUrl,
+    { headers: { accept: "application/json" } },
+    "PubMed 검색",
+  );
   if (!searchResponse.ok) {
     throw new Error(`PubMed 검색 실패 (${searchResponse.status})`);
   }
@@ -249,9 +277,11 @@ async function fetchPubMed(
     rettype: "abstract",
     tool: "vigilance-weekly",
   }).toString();
-  const articleResponse = await fetch(fetchUrl, {
-    headers: { accept: "application/xml" },
-  });
+  const articleResponse = await fetchWithRetry(
+    fetchUrl,
+    { headers: { accept: "application/xml" } },
+    "PubMed 상세정보 조회",
+  );
   if (!articleResponse.ok) {
     throw new Error(`PubMed 상세정보 조회 실패 (${articleResponse.status})`);
   }
@@ -329,7 +359,11 @@ async function fetchFdaRecalls(
   const query = `openfda.generic_name:"${monitor.ingredient}" AND report_date:[${start} TO ${end}]`;
   const url = new URL("https://api.fda.gov/drug/enforcement.json");
   url.search = new URLSearchParams({ search: query, limit: "20" }).toString();
-  const response = await fetch(url, { headers: { accept: "application/json" } });
+  const response = await fetchWithRetry(
+    url,
+    { headers: { accept: "application/json" } },
+    "FDA 규제정보 검색",
+  );
   if (response.status === 404) return [];
   if (!response.ok) {
     throw new Error(`FDA 규제정보 검색 실패 (${response.status})`);
@@ -345,6 +379,48 @@ async function fetchFdaRecalls(
     sourceUrl: `https://api.fda.gov/drug/enforcement.json?search=${encodeURIComponent(`recall_number:"${String(item.recall_number ?? "")}"`)}`,
     monitor: monitor.ingredient,
   }));
+}
+
+async function fetchWithRetry(
+  input: URL,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  const maxAttempts = 4;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(input, init);
+      const retryable =
+        response.status === 408 ||
+        response.status === 425 ||
+        response.status === 429 ||
+        response.status >= 500;
+      if (!retryable || attempt === maxAttempts) return response;
+
+      const retryAfter = Number(response.headers.get("retry-after"));
+      await delay(
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 8000)
+          : 750 * 2 ** (attempt - 1),
+      );
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts) break;
+      await delay(750 * 2 ** (attempt - 1));
+    }
+  }
+
+  throw new Error(`${label} 네트워크 오류: ${errorMessage(lastError)}`);
+}
+
+function delay(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "알 수 없는 수집 오류";
 }
 
 async function updateRun(

@@ -204,6 +204,7 @@ footer .brandMark { width: 27px; height: 27px; }
 .progressTrack { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .2); }
 .progressTrack span { display: block; height: 100%; border-radius: inherit; background: white; transition: width .3s ease; }
 .progressLabel { display: block; margin-top: 7px; color: #d5ece4; font-size: 11px; }
+.runWarning { display: block; max-width: 650px; margin-top: 9px; padding: 9px 11px; border-radius: 6px; background: rgba(255,255,255,.12); color: #fff2d6; font-size: 11px; line-height: 1.5; }
 .runAction { min-width: 190px; text-align: right; }
 .runButton { width: 100%; border: 0; border-radius: 7px; background: white; color: var(--green); padding: 13px 16px; font-weight: 760; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
 .runButton:hover:not(:disabled) { transform: translateY(-1px); }
@@ -255,6 +256,7 @@ footer .brandMark { width: 27px; height: 27px; }
 .adminReportRow:last-child { border-bottom: 0; }
 .adminReportRow > div { display: grid; gap: 5px; }
 .adminReportRow small { color: var(--muted); font-size: 11px; }
+.adminReportRow .reportRunError { color: #a4473d; }
 .adminReportRow > a { color: var(--green); font-size: 12px; font-weight: 720; }
 .runStatus { min-width: 67px; padding: 5px 8px; border-radius: 999px; background: #edf1ef; color: var(--muted); font-size: 10px; font-weight: 760; text-align: center; }
 .runStatus.completed { color: var(--green); background: var(--mint); }
