@@ -143,6 +143,16 @@ footer .brandMark { width: 27px; height: 27px; }
 .managerHeader { display: flex; justify-content: space-between; align-items: start; margin-bottom: 34px; }
 .managerHeader h1 { font: 500 42px Georgia, serif; margin: 6px 0 10px; }
 .managerHeader p { color: var(--muted); margin: 0; }
+.runPanel { background: #0d6b4f; color: white; border-radius: 10px; padding: 24px 26px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 28px; box-shadow: 0 12px 32px rgba(13, 107, 79, .13); }
+.runPanel .eyebrow { color: #b7e2d4; margin: 0 0 6px; }
+.runPanel h2 { margin: 0 0 7px; font: 500 25px Georgia, serif; }
+.runPanel p { margin: 0; color: #e5f4ef; font-size: 13px; line-height: 1.6; }
+.runMeta { display: block; margin-top: 9px; color: #b7e2d4; font-size: 11px; }
+.runAction { min-width: 190px; text-align: right; }
+.runButton { width: 100%; border: 0; border-radius: 7px; background: white; color: var(--green); padding: 13px 16px; font-weight: 760; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
+.runButton:hover:not(:disabled) { transform: translateY(-1px); }
+.runButton:disabled { opacity: .62; cursor: not-allowed; }
+.runPanel .runMessage { margin-top: 8px; color: white; font-size: 11px; text-align: left; }
 .userChip { display: grid; text-align: right; gap: 3px; font-size: 12px; }
 .userChip small { color: var(--muted); }
 .userChip a { color: var(--green); margin-top: 5px; }
@@ -173,6 +183,8 @@ footer .brandMark { width: 27px; height: 27px; }
   .regionGrid { grid-template-columns: 1fr; }
   .managerGrid { grid-template-columns: 1fr; }
   .managerHeader { flex-direction: column; gap: 20px; }
+  .runPanel { align-items: stretch; flex-direction: column; gap: 18px; }
+  .runAction { min-width: 0; text-align: left; }
   .userChip { text-align: left; }
   .cta { flex-direction: column; align-items: flex-start; }
   footer { flex-direction: column; align-items: flex-start; }
