@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { reports } from "../../report-data";
+import { getStoredReports } from "../../../db/public-reports";
 
 const currentLiterature = reports.flatMap((report) => report.literature);
 
@@ -16,7 +17,10 @@ export default async function LiteratureDetailPage({
   params: Promise<{ pmid: string }>;
 }) {
   const { pmid } = await params;
-  const item = currentLiterature.find((entry) => entry.pmid === pmid);
+  const storedReports = await getStoredReports();
+  const item = [...storedReports, ...reports]
+    .flatMap((report) => report.literature)
+    .find((entry) => entry.pmid === pmid);
   if (!item?.sourceUrl) notFound();
 
   return (
@@ -36,6 +40,7 @@ export default async function LiteratureDetailPage({
           ← 이번 주 리포트
         </Link>
         <div className="badges">
+          {item.monitor && <span className="drugBadge">{item.monitor}</span>}
           <span>{item.tag}</span>
           <span className={item.level === "낮음" ? "low" : "medium"}>
             우선순위 {item.level}

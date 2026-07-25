@@ -62,8 +62,46 @@ export default async function Home() {
       <section className="summaryGrid" aria-label="이번 주 요약">
         <article className="summaryCard primary">
           <span>모니터링 대상</span>
-          <strong>{currentReport.target}</strong>
-          <small>{currentReport.aliases}</small>
+          <strong>
+            {currentReport.targets?.length
+              ? `${currentReport.targets.length}개`
+              : currentReport.target}
+          </strong>
+          {currentReport.targets?.length ? (
+            <>
+              <div className="targetPreview" aria-label="대표 감시 대상">
+                {currentReport.targets.slice(0, 3).map((target) => (
+                  <span key={target.ingredient}>{target.ingredient}</span>
+                ))}
+                {currentReport.targets.length > 3 && (
+                  <span>+{currentReport.targets.length - 3}개</span>
+                )}
+              </div>
+              <details className="targetDisclosure">
+                <summary>전체 대상 보기</summary>
+                <div className="targetSummaryList">
+                  {currentReport.targets.map((target) => (
+                    <div className="targetSummaryRow" key={target.ingredient}>
+                      <div>
+                        <strong>{target.ingredient}</strong>
+                        <small>
+                          {[target.productName, target.aliases]
+                            .filter(Boolean)
+                            .join(" · ") || "등록된 검색어"}
+                        </small>
+                      </div>
+                      <span>
+                        문헌 {target.literatureCount} · ICSR {target.icsrCount} · 규제{" "}
+                        {target.regulationCount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </>
+          ) : (
+            <small>{currentReport.aliases}</small>
+          )}
         </article>
         <article className="summaryCard">
           <span>신규 규제조치</span>
@@ -120,15 +158,14 @@ export default async function Home() {
           {literature.length ? literature.map((item, index) => (
             <Link
               className="literatureCard literatureLink"
-              href={item.sourceUrl ?? `/literature/${item.pmid}`}
-              target={item.sourceUrl ? "_blank" : undefined}
-              rel={item.sourceUrl ? "noreferrer" : undefined}
+              href={`/literature/${item.pmid}`}
               key={item.title}
               aria-label={`${item.title} 상세 정보 보기`}
             >
               <div className="itemNumber">0{index + 1}</div>
               <div className="literatureBody">
                 <div className="badges">
+                  {item.monitor && <span className="drugBadge">{item.monitor}</span>}
                   <span>{item.tag}</span>
                   <span className={item.level === "낮음" ? "low" : "medium"}>
                     우선순위 {item.level}

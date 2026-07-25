@@ -12,6 +12,14 @@ export type Report = {
   status?: string;
   stage?: string;
   progress?: number;
+  targets?: {
+    ingredient: string;
+    productName?: string;
+    aliases?: string;
+    literatureCount: number;
+    regulationCount: number;
+    icsrCount: number;
+  }[];
   regulatory?: {
     source: string;
     title: string;
@@ -34,6 +42,7 @@ export type Report = {
     published?: string;
     assessment?: string;
     sourceUrl?: string;
+    monitor?: string;
   }[];
 };
 
@@ -48,6 +57,7 @@ export const emptyReport: Report = {
   regulationCount: 0,
   literatureCount: 0,
   icsrCount: 0,
+  targets: [],
   literature: [],
 };
 

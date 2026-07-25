@@ -81,10 +81,15 @@ export default async function ReportPage({
             </div>
           )}
           {report.literature.map((item, index) => (
-            <article className="literatureCard" key={item.title}>
+            <Link
+              className="literatureCard literatureLink"
+              href={`/literature/${item.pmid}`}
+              key={item.title}
+            >
               <div className="itemNumber">0{index + 1}</div>
               <div className="literatureBody">
                 <div className="badges">
+                  {item.monitor && <span className="drugBadge">{item.monitor}</span>}
                   <span>{item.tag}</span>
                   <span className={item.level === "낮음" ? "low" : "medium"}>
                     우선순위 {item.level}
@@ -93,27 +98,9 @@ export default async function ReportPage({
                 <h3>{item.title}</h3>
                 <p>{item.summary}</p>
                 <small>{item.meta}</small>
-                {item.pmid && (
-                  item.sourceUrl ? (
-                    <a
-                      className="inlineDetailLink"
-                      href={item.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      PubMed에서 보기 ↗
-                    </a>
-                  ) : (
-                    <Link
-                      className="inlineDetailLink"
-                      href={`/literature/${item.pmid}`}
-                    >
-                      자세히 보기 →
-                    </Link>
-                  )
-                )}
+                {item.pmid && <span className="inlineDetailLink">자세히 보기 →</span>}
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

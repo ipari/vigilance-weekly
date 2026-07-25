@@ -85,6 +85,26 @@ function toPublicReport(
     regulationCount: regulatory.length,
     literatureCount: literature.length,
     icsrCount: literature.filter((item) => item.tag === "ICSR 검토").length,
+    targets: snapshot.map((monitor) => {
+      const matchesMonitor = (value: string) =>
+        value.trim().toLocaleLowerCase() ===
+        monitor.ingredient.trim().toLocaleLowerCase();
+      const monitorLiterature = literature.filter((item) =>
+        matchesMonitor(item.monitor),
+      );
+      return {
+        ingredient: monitor.ingredient,
+        productName: monitor.productName,
+        aliases: monitor.aliases,
+        literatureCount: monitorLiterature.length,
+        regulationCount: regulatory.filter((item) =>
+          matchesMonitor(item.monitor),
+        ).length,
+        icsrCount: monitorLiterature.filter(
+          (item) => item.tag === "ICSR 검토",
+        ).length,
+      };
+    }),
     literature: literature.map((item) => ({
       pmid: item.pmid,
       tag: item.tag,
@@ -102,6 +122,7 @@ function toPublicReport(
           ? "개별 증례 가능성과 중대성, 예상성 및 중복 여부를 우선 검토합니다."
           : "누적 안전성 근거로 분류하고 기존 시그널과의 일관성을 확인합니다.",
       sourceUrl: item.sourceUrl,
+      monitor: item.monitor,
     })),
     status: run.status,
     stage: run.stage,
