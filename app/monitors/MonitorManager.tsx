@@ -276,7 +276,11 @@ export default function MonitorManager() {
               <button
                 type="button"
                 className="deleteReportButton"
-                disabled={deletingId === item.id || item.status === "queued" || item.status === "running"}
+                disabled={
+                  deletingId === item.id ||
+                  item.status === "running" ||
+                  (item.status === "queued" && item.totalSteps > 0)
+                }
                 onClick={() => deleteReport(item)}
               >
                 {deletingId === item.id ? "삭제 중…" : "삭제"}
