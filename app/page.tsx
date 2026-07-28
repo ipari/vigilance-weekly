@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getChatGPTUser, chatGPTSignInPath } from "./chatgpt-auth";
 import { emptyReport, reports } from "./report-data";
 import { getStoredReports } from "../db/public-reports";
+import { getNextScheduledRun } from "../db/public-schedules";
 
 const regions = [
   { name: "한국", source: "MFDS · KIDS", count: 0, status: "신규 조치 없음" },
@@ -10,9 +11,10 @@ const regions = [
 ];
 
 export default async function Home() {
-  const [user, storedReports] = await Promise.all([
+  const [user, storedReports, nextSchedule] = await Promise.all([
     getChatGPTUser(),
     getStoredReports(),
+    getNextScheduledRun(),
   ]);
   const latestStoredReport = storedReports.find(
     (report) => report.status === "completed",
@@ -53,9 +55,17 @@ export default async function Home() {
         </div>
         <div className="heroStatus">
           <span className="pulse" />
-          자동 모니터링
-          <strong>등록된 일정에 따라</strong>
-          <small>Asia/Seoul 기준</small>
+          다음 업데이트
+          <strong>
+            {nextSchedule
+              ? formatSeoulSchedule(nextSchedule.executeAt)
+              : "등록된 일정 없음"}
+          </strong>
+          <small>
+            {nextSchedule
+              ? `${frequencyLabel(nextSchedule.frequency, nextSchedule.weekday)} · Asia/Seoul`
+              : "설정에서 자동 실행 일정을 추가하세요"}
+          </small>
         </div>
       </section>
 
@@ -237,4 +247,23 @@ export default async function Home() {
       </footer>
     </main>
   );
+}
+
+function formatSeoulSchedule(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function frequencyLabel(frequency: string, weekday: number | null) {
+  if (frequency === "daily") return "매일";
+  if (frequency === "weekly") {
+    return `매주 ${["일", "월", "화", "수", "목", "금", "토"][weekday ?? 1]}요일`;
+  }
+  return "1회성";
 }
