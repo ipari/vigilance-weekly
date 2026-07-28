@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { monitoringRuns, monitors } from "../../../db/schema";
@@ -79,10 +79,18 @@ export async function GET() {
   }
 
   try {
+    const timeoutCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await getDb().run(sql`
+      UPDATE monitoring_runs
+      SET status = 'failed', stage = '제한 시간 초과',
+          error_message = '리포트 생성 제한 시간 30분을 초과했습니다.',
+          completed_at = CURRENT_TIMESTAMP
+      WHERE status IN ('queued', 'running')
+        AND COALESCE(started_at, created_at) < ${timeoutCutoff}
+    `);
     const rows = await getDb()
       .select()
       .from(monitoringRuns)
-      .where(eq(monitoringRuns.ownerEmail, user.email))
       .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
       .limit(50);
 
@@ -101,6 +109,34 @@ export async function GET() {
       { status: 500 },
     );
   }
+}
+
+export async function PATCH(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) {
+    return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  const id = Number(new URL(request.url).searchParams.get("id"));
+  if (!Number.isInteger(id) || id < 1) {
+    return Response.json({ error: "취소할 리포트가 올바르지 않습니다." }, { status: 400 });
+  }
+
+  const result = await getDb().run(sql`
+    UPDATE monitoring_runs
+    SET status = 'canceled', stage = '사용자가 실행 취소',
+        error_message = '사용자가 리포트 생성을 취소했습니다.',
+        completed_at = CURRENT_TIMESTAMP
+    WHERE id = ${id} AND status IN ('queued', 'running')
+  `);
+
+  if (Number(result.meta.changes ?? 0) === 0) {
+    return Response.json(
+      { error: "대기 중이거나 실행 중인 리포트만 취소할 수 있습니다." },
+      { status: 409 },
+    );
+  }
+  return Response.json({ canceled: true, id });
 }
 
 export async function DELETE(request: Request) {
@@ -123,10 +159,7 @@ export async function DELETE(request: Request) {
       })
       .from(monitoringRuns)
       .where(
-        and(
-          eq(monitoringRuns.id, id),
-          eq(monitoringRuns.ownerEmail, user.email),
-        ),
+        eq(monitoringRuns.id, id),
       )
       .limit(1);
 
@@ -143,10 +176,7 @@ export async function DELETE(request: Request) {
     await getDb()
       .delete(monitoringRuns)
       .where(
-        and(
-          eq(monitoringRuns.id, id),
-          eq(monitoringRuns.ownerEmail, user.email),
-        ),
+        eq(monitoringRuns.id, id),
       );
 
     return Response.json({ deleted: true, id });
@@ -178,9 +208,7 @@ export async function POST() {
         regions: monitors.regions,
       })
       .from(monitors)
-      .where(
-        and(eq(monitors.ownerEmail, user.email), eq(monitors.active, true)),
-      )
+      .where(eq(monitors.active, true))
       .orderBy(monitors.id);
 
     if (activeMonitors.length === 0) {
@@ -195,10 +223,7 @@ export async function POST() {
       .select({ count: count() })
       .from(monitoringRuns)
       .where(
-        and(
-          eq(monitoringRuns.ownerEmail, user.email),
-          eq(monitoringRuns.weekKey, period.weekKey),
-        ),
+        eq(monitoringRuns.weekKey, period.weekKey),
       );
     const reportSequence = Number(weekRuns?.count ?? 0) + 1;
 

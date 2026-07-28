@@ -209,6 +209,7 @@ footer .brandMark { width: 27px; height: 27px; }
 .runButton { width: 100%; border: 0; border-radius: 7px; background: white; color: var(--green); padding: 13px 16px; font-weight: 760; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
 .runButton:hover:not(:disabled) { transform: translateY(-1px); }
 .runButton:disabled { opacity: .62; cursor: not-allowed; }
+.cancelRunButton { width: 100%; margin-top: 8px; border: 1px solid rgba(255,255,255,.45); border-radius: 7px; background: transparent; color: white; padding: 10px 14px; font-weight: 700; cursor: pointer; }
 .runPanel .runMessage { margin-top: 8px; color: white; font-size: 11px; text-align: left; }
 .userChip { display: grid; text-align: right; gap: 3px; font-size: 12px; }
 .userChip small { color: var(--muted); }
@@ -232,6 +233,18 @@ footer .brandMark { width: 27px; height: 27px; }
 .emptyState { color: var(--muted); font-size: 13px; border: 1px dashed #cbd5d0; padding: 28px; text-align: center; border-radius: 8px; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .targetPanel, .reportAdminPanel { margin-top: 18px; }
+.schedulePanel { margin: 18px 0; }
+.scheduleForm { display: grid; grid-template-columns: minmax(240px, 1fr) auto auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f5f8f6; }
+.scheduleForm label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.scheduleForm input { height: 40px; padding: 8px 11px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; }
+.scheduleForm > span { height: 40px; display: flex; align-items: center; color: var(--muted); font-size: 11px; }
+.scheduleForm button { height: 40px; padding: 0 17px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 720; cursor: pointer; }
+.scheduleList { display: grid; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.scheduleList article { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.scheduleList article:last-child { border-bottom: 0; }
+.scheduleList article > div { display: grid; gap: 4px; }
+.scheduleList small { color: var(--muted); }
+.scheduleList button, .cancelInlineButton { padding: 7px 10px; border: 1px solid #e1b981; border-radius: 6px; background: white; color: #94601f; cursor: pointer; font-size: 11px; }
 .panelHeadingRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .panelHeadingRow .panelIntro { margin: 7px 0 0; }
 .monitorSearch input { width: min(320px, 34vw); padding: 10px 13px; border: 1px solid #ccd5d0; border-radius: 7px; background: #f8faf8; outline: none; }
@@ -252,7 +265,7 @@ footer .brandMark { width: 27px; height: 27px; }
 .pagination button { padding: 7px 11px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
 .pagination button:disabled { opacity: .45; cursor: not-allowed; }
 .adminReportList { display: grid; margin-top: 20px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.adminReportRow { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: center; gap: 18px; padding: 15px 17px; border-bottom: 1px solid var(--line); background: white; }
+.adminReportRow { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto auto; align-items: center; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); background: white; }
 .adminReportRow:last-child { border-bottom: 0; }
 .adminReportRow > div { display: grid; gap: 5px; }
 .adminReportRow small { color: var(--muted); font-size: 11px; }
@@ -261,6 +274,7 @@ footer .brandMark { width: 27px; height: 27px; }
 .runStatus { min-width: 67px; padding: 5px 8px; border-radius: 999px; background: #edf1ef; color: var(--muted); font-size: 10px; font-weight: 760; text-align: center; }
 .runStatus.completed { color: var(--green); background: var(--mint); }
 .runStatus.failed { color: #9f3e35; background: #f8e6e3; }
+.runStatus.canceled { color: #59635f; background: #e8edeb; }
 .runStatus.running, .runStatus.queued { color: #94601f; background: #f7ead8; }
 .deleteReportButton { padding: 7px 10px; border: 1px solid #e3c6c1; border-radius: 6px; background: white; color: #a4473d; cursor: pointer; font-size: 11px; }
 .deleteReportButton:disabled { opacity: .42; cursor: not-allowed; }
@@ -281,6 +295,8 @@ footer .brandMark { width: 27px; height: 27px; }
   .cta { flex-direction: column; align-items: flex-start; }
   footer { flex-direction: column; align-items: flex-start; }
   .quickMonitorForm { grid-template-columns: 1fr 1fr; }
+  .scheduleForm { grid-template-columns: 1fr auto; }
+  .scheduleForm label { grid-column: 1 / -1; }
   .quickMonitorForm button { grid-column: 1 / -1; }
   .adminReportRow { grid-template-columns: 1fr auto auto; }
   .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }
@@ -304,6 +320,8 @@ footer .brandMark { width: 27px; height: 27px; }
   .panelHeadingRow { flex-direction: column; }
   .monitorSearch, .monitorSearch input { width: 100%; }
   .quickMonitorForm { grid-template-columns: 1fr; }
+  .scheduleForm { grid-template-columns: 1fr; }
+  .scheduleForm label { grid-column: auto; }
   .quickMonitorForm button { grid-column: auto; }
   .adminReportRow { grid-template-columns: 1fr auto; gap: 10px; }
   .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }

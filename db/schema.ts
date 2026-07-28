@@ -34,3 +34,14 @@ export const monitoringRuns = sqliteTable("monitoring_runs", {
   literatureResults: text("literature_results").notNull().default("[]"),
   regulatoryResults: text("regulatory_results").notNull().default("[]"),
 });
+
+export const scheduledRuns = sqliteTable("scheduled_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  executeAt: text("execute_at").notNull(),
+  status: text("status").notNull().default("pending"),
+  requestedBy: text("requested_by").notNull(),
+  runId: integer("run_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  canceledAt: text("canceled_at"),
+  errorMessage: text("error_message"),
+});

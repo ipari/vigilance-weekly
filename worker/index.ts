@@ -1,7 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { startMonitoringRun } from "./monitoring";
+import { runScheduledMonitoring, startMonitoringRun } from "./monitoring";
 
 interface Env {
   ASSETS: Fetcher;
@@ -18,6 +18,10 @@ interface Env {
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
+}
+
+interface ScheduledEvent {
+  scheduledTime: number;
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -49,6 +53,13 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+  async scheduled(
+    controller: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext,
+  ) {
+    ctx.waitUntil(runScheduledMonitoring(env, ctx, controller.scheduledTime));
   },
 };
 

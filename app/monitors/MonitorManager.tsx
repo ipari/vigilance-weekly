@@ -29,6 +29,14 @@ type MonitoringRun = {
   errorMessage: string | null;
 };
 
+type ScheduledRun = {
+  id: number;
+  executeAt: string;
+  status: string;
+  runId: number | null;
+  errorMessage: string | null;
+};
+
 const PAGE_SIZE = 8;
 
 export default function MonitorManager() {
@@ -43,6 +51,10 @@ export default function MonitorManager() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [schedules, setSchedules] = useState<ScheduledRun[]>([]);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleMessage, setScheduleMessage] = useState("");
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -51,6 +63,7 @@ export default function MonitorManager() {
         .then((data) => setMonitors(data.monitors ?? []))
         .finally(() => setLoading(false)),
       loadRuns().finally(() => setRunLoading(false)),
+      loadSchedules(),
     ]);
   }, []);
 
@@ -64,6 +77,59 @@ export default function MonitorManager() {
       return latest as MonitoringRun | null;
     }
     return null;
+  }
+
+  async function loadSchedules() {
+    const response = await fetch("/api/schedules", { cache: "no-store" });
+    const payload = await response.json();
+    if (response.ok) setSchedules(payload.schedules ?? []);
+  }
+
+  async function createSchedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setScheduleLoading(true);
+    setScheduleMessage("");
+    try {
+      const response = await fetch("/api/schedules", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          executeAt: new Date(`${scheduleAt}:00+09:00`).toISOString(),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setScheduleMessage(payload.error ?? "예약을 등록하지 못했습니다.");
+        return;
+      }
+      setScheduleAt("");
+      setScheduleMessage("예약 실행을 등록했습니다.");
+      await loadSchedules();
+    } finally {
+      setScheduleLoading(false);
+    }
+  }
+
+  async function cancelSchedule(id: number) {
+    const response = await fetch(`/api/schedules?id=${id}`, { method: "DELETE" });
+    const payload = await response.json();
+    setScheduleMessage(
+      response.ok ? "예약을 취소했습니다." : payload.error ?? "예약을 취소하지 못했습니다.",
+    );
+    if (response.ok) await loadSchedules();
+  }
+
+  async function cancelRun(target: MonitoringRun) {
+    const response = await fetch(`/api/monitoring-runs?id=${target.id}`, {
+      method: "PATCH",
+    });
+    const payload = await response.json();
+    setRunMessage(
+      response.ok && payload.canceled
+        ? `${target.reportLabel} 실행을 취소했습니다.`
+        : payload.error ?? "실행을 취소하지 못했습니다.",
+    );
+    await loadRuns();
   }
 
   useEffect(() => {
@@ -207,7 +273,69 @@ export default function MonitorManager() {
           <button className="runButton" type="button" onClick={runWeeklyUpdate} disabled={loading || running || activeMonitorCount === 0}>
             {running ? "업데이트 중…" : "리포트 업데이트"}
           </button>
+          {(run?.status === "queued" || run?.status === "running") && (
+            <button
+              className="cancelRunButton"
+              type="button"
+              onClick={() => cancelRun(run)}
+            >
+              실행 취소
+            </button>
+          )}
           {runMessage && <p className="runMessage" role="status">{runMessage}</p>}
+        </div>
+      </section>
+
+      <section className="panel schedulePanel">
+        <div className="panelHeadingRow">
+          <div>
+            <h2>예약 실행</h2>
+            <p className="panelIntro">
+              매주 월요일 06:00 자동 실행 · 제한 시간 30분
+            </p>
+          </div>
+        </div>
+        <form className="scheduleForm" onSubmit={createSchedule}>
+          <label>
+            실행할 날짜와 시각
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(event) => setScheduleAt(event.target.value)}
+              required
+            />
+          </label>
+          <span>Asia/Seoul</span>
+          <button type="submit" disabled={scheduleLoading}>
+            {scheduleLoading ? "예약 중" : "예약 등록"}
+          </button>
+        </form>
+        {scheduleMessage && <p className="formMessage">{scheduleMessage}</p>}
+        <div className="scheduleList">
+          {schedules.map((schedule) => (
+            <article key={schedule.id}>
+              <div>
+                <strong>{formatSeoulDateTime(schedule.executeAt)}</strong>
+                <small>
+                  {schedule.status === "pending"
+                    ? "실행 대기"
+                    : schedule.status === "triggered"
+                      ? `실행 시작${schedule.runId ? ` · 리포트 #${schedule.runId}` : ""}`
+                      : schedule.status === "canceled"
+                        ? "예약 취소"
+                        : "예약 실패"}
+                </small>
+              </div>
+              {schedule.status === "pending" && (
+                <button type="button" onClick={() => cancelSchedule(schedule.id)}>
+                  예약 취소
+                </button>
+              )}
+            </article>
+          ))}
+          {schedules.length === 0 && (
+            <div className="emptyState">등록된 일회성 예약이 없습니다.</div>
+          )}
         </div>
       </section>
 
@@ -284,6 +412,15 @@ export default function MonitorManager() {
               </div>
               <span className={`runStatus ${item.status}`}>{runStatusLabel(item.status)}</span>
               <a href={`/reports/run-${item.id}`}>보기</a>
+              {(item.status === "queued" || item.status === "running") && (
+                <button
+                  type="button"
+                  className="cancelInlineButton"
+                  onClick={() => cancelRun(item)}
+                >
+                  취소
+                </button>
+              )}
               <button
                 type="button"
                 className="deleteReportButton"
@@ -309,7 +446,19 @@ function runStatusLabel(status: string) {
   if (status === "running") return "실행 중";
   if (status === "completed") return "완료";
   if (status === "failed") return "실패";
+  if (status === "canceled") return "취소됨";
   return status;
+}
+
+function formatSeoulDateTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function regionLabel(regions: string) {

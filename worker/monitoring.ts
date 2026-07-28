@@ -34,6 +34,7 @@ type RegulatoryResult = {
 };
 
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
+const RUN_TIMEOUT_MS = 30 * 60 * 1000;
 
 export async function startMonitoringRun(
   request: Request,
@@ -49,12 +50,14 @@ export async function startMonitoringRun(
     `SELECT id, ingredient, product_name AS productName,
       aliases, regions
      FROM monitors
-     WHERE owner_email = ? AND active = 1
+     WHERE active = 1
      ORDER BY id`,
   )
-    .bind(email)
     .all<Monitor>();
-  const activeMonitors = monitorResult.results ?? [];
+  const activeMonitors = uniqueBy(
+    monitorResult.results ?? [],
+    (monitor) => monitor.ingredient.trim().toLocaleLowerCase(),
+  );
 
   if (activeMonitors.length === 0) {
     return Response.json(
@@ -67,9 +70,9 @@ export async function startMonitoringRun(
   const countRow = await env.DB.prepare(
     `SELECT COUNT(*) AS count
      FROM monitoring_runs
-     WHERE owner_email = ? AND week_key = ?`,
+     WHERE week_key = ?`,
   )
-    .bind(email, period.weekKey)
+    .bind(period.weekKey)
     .first<{ count: number }>();
   const reportSequence = Number(countRow?.count ?? 0) + 1;
   const totalSteps = activeMonitors.length * 2;
@@ -141,6 +144,7 @@ async function executeMonitoringRun(
   const totalSteps = monitors.length * 2;
   let completedSteps = 0;
   let successfulSteps = 0;
+  const deadline = Date.now() + RUN_TIMEOUT_MS;
 
   try {
     await updateRun(env, runId, {
@@ -152,6 +156,7 @@ async function executeMonitoringRun(
     });
 
     for (const monitor of monitors) {
+      await assertRunActive(env, runId, deadline);
       await updateRun(env, runId, {
         stage: `${monitor.ingredient} PubMed 문헌 검색`,
         progress: percent(completedSteps, totalSteps),
@@ -165,6 +170,7 @@ async function executeMonitoringRun(
       }
       completedSteps += 1;
       await delay(400);
+      await assertRunActive(env, runId, deadline);
       await updateRun(env, runId, {
         stage: `${monitor.ingredient} FDA 규제정보 검색`,
         progress: percent(completedSteps, totalSteps),
@@ -180,6 +186,7 @@ async function executeMonitoringRun(
       await delay(400);
     }
 
+    await assertRunActive(env, runId, deadline);
     if (successfulSteps === 0 && failures.length > 0) {
       throw new Error(failures.join(" | "));
     }
@@ -201,7 +208,7 @@ async function executeMonitoringRun(
        SET status = 'completed', stage = ?,
            progress = 100, completed_steps = ?, completed_at = ?,
            literature_results = ?, regulatory_results = ?, error_message = ?
-       WHERE id = ?`,
+       WHERE id = ? AND status = 'running'`,
     )
       .bind(
         completedStage,
@@ -214,6 +221,13 @@ async function executeMonitoringRun(
       )
       .run();
   } catch (error) {
+    const current = await env.DB.prepare(
+      "SELECT status FROM monitoring_runs WHERE id = ?",
+    )
+      .bind(runId)
+      .first<{ status: string }>();
+    if (current && !["queued", "running"].includes(current.status)) return;
+
     await env.DB.prepare(
       `UPDATE monitoring_runs
        SET status = 'failed', stage = '업데이트 실패',
@@ -226,6 +240,24 @@ async function executeMonitoringRun(
         runId,
       )
       .run();
+  }
+}
+
+async function assertRunActive(
+  env: MonitoringEnv,
+  runId: number,
+  deadline: number,
+) {
+  if (Date.now() >= deadline) {
+    throw new Error("리포트 생성 제한 시간 30분을 초과했습니다.");
+  }
+  const run = await env.DB.prepare(
+    "SELECT status FROM monitoring_runs WHERE id = ?",
+  )
+    .bind(runId)
+    .first<{ status: string }>();
+  if (!run || !["queued", "running"].includes(run.status)) {
+    throw new Error("리포트 실행이 취소되었거나 종료되었습니다.");
   }
 }
 
@@ -379,6 +411,114 @@ async function fetchFdaRecalls(
     sourceUrl: `https://api.fda.gov/drug/enforcement.json?search=${encodeURIComponent(`recall_number:"${String(item.recall_number ?? "")}"`)}`,
     monitor: monitor.ingredient,
   }));
+}
+
+export async function runScheduledMonitoring(
+  env: MonitoringEnv,
+  ctx: ExecutionContext,
+  scheduledTime = Date.now(),
+) {
+  const cutoff = new Date(scheduledTime - RUN_TIMEOUT_MS).toISOString();
+  await env.DB.prepare(
+    `UPDATE monitoring_runs
+     SET status = 'failed', stage = '제한 시간 초과',
+         error_message = '리포트 생성 제한 시간 30분을 초과했습니다.',
+         completed_at = ?
+     WHERE status IN ('queued', 'running')
+       AND COALESCE(started_at, created_at) < ?`,
+  )
+    .bind(new Date(scheduledTime).toISOString(), cutoff)
+    .run();
+
+  const due = await env.DB.prepare(
+    `SELECT id FROM scheduled_runs
+     WHERE status = 'pending' AND execute_at <= ?
+     ORDER BY execute_at, id LIMIT 20`,
+  )
+    .bind(new Date(scheduledTime).toISOString())
+    .all<{ id: number }>();
+
+  for (const schedule of due.results ?? []) {
+    const claimed = await env.DB.prepare(
+      `UPDATE scheduled_runs SET status = 'dispatching'
+       WHERE id = ? AND status = 'pending'`,
+    )
+      .bind(schedule.id)
+      .run();
+    if (Number(claimed.meta.changes ?? 0) !== 1) continue;
+
+    try {
+      const run = await startSystemRun(env, ctx, "scheduled_test");
+      await env.DB.prepare(
+        `UPDATE scheduled_runs SET status = 'triggered', run_id = ?
+         WHERE id = ?`,
+      )
+        .bind(run.id, schedule.id)
+        .run();
+    } catch (error) {
+      await env.DB.prepare(
+        `UPDATE scheduled_runs SET status = 'failed', error_message = ?
+         WHERE id = ?`,
+      )
+        .bind(errorMessage(error), schedule.id)
+        .run();
+    }
+  }
+
+  const seoul = seoulDateParts(new Date(scheduledTime));
+  if (seoul.weekday === "Mon" && seoul.hour === 6 && seoul.minute === 0) {
+    const period = currentSeoulWeek(new Date(scheduledTime));
+    const existing = await env.DB.prepare(
+      `SELECT id FROM monitoring_runs
+       WHERE week_key = ? AND trigger_type = 'scheduled'
+       LIMIT 1`,
+    )
+      .bind(period.weekKey)
+      .first<{ id: number }>();
+    if (!existing) await startSystemRun(env, ctx, "scheduled");
+  }
+}
+
+async function startSystemRun(
+  env: MonitoringEnv,
+  ctx: ExecutionContext,
+  triggerType: "scheduled" | "scheduled_test",
+) {
+  const request = new Request("https://internal/api/monitoring-runs", {
+    method: "POST",
+    headers: { [USER_EMAIL_HEADER]: "site-scheduler@vigilance-weekly" },
+  });
+  const response = await startMonitoringRun(request, env, ctx);
+  const payload = (await response.json()) as {
+    run?: { id: number };
+    error?: string;
+  };
+  if (!response.ok || !payload.run) {
+    throw new Error(payload.error ?? "예약 실행을 시작하지 못했습니다.");
+  }
+  await env.DB.prepare(
+    "UPDATE monitoring_runs SET trigger_type = ? WHERE id = ?",
+  )
+    .bind(triggerType, payload.run.id)
+    .run();
+  return payload.run;
+}
+
+function seoulDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    weekday: value("weekday"),
+    hour: Number(value("hour")),
+    minute: Number(value("minute")),
+  };
 }
 
 async function fetchWithRetry(
