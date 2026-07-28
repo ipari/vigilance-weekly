@@ -1,4 +1,5 @@
 import { nextScheduleOccurrence } from "../lib/scheduling";
+import { shouldRestartLegacyRun } from "../lib/monitoring-state";
 
 interface MonitoringEnv {
   DB: D1Database;
@@ -153,6 +154,7 @@ export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
   const staleLock = new Date(now.getTime() - STEP_LOCK_TIMEOUT_MS).toISOString();
   const candidate = await env.DB.prepare(
     `SELECT id, completed_steps AS completedSteps,
+            last_activity_at AS lastActivityAt,
             literature_results AS literatureResults,
             regulatory_results AS regulatoryResults
      FROM monitoring_runs
@@ -162,6 +164,7 @@ export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
   ).first<{
     id: number;
     completedSteps: number;
+    lastActivityAt: string | null;
     literatureResults: string;
     regulatoryResults: string;
   }>();
@@ -169,11 +172,7 @@ export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
 
   // Runs created by the former monolithic worker advanced progress without
   // checkpointing results. Restart those safely from the first source.
-  if (
-    candidate.completedSteps > 0 &&
-    candidate.literatureResults === "[]" &&
-    candidate.regulatoryResults === "[]"
-  ) {
+  if (shouldRestartLegacyRun(candidate)) {
     await env.DB.prepare(
       `UPDATE monitoring_runs
        SET completed_steps = 0, progress = 0, failed_steps = 0,
