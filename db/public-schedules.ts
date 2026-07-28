@@ -7,9 +7,6 @@ export async function getNextScheduledRun() {
     const [schedule] = await getDb()
       .select({
         executeAt: scheduledRuns.executeAt,
-        frequency: scheduledRuns.frequency,
-        weekday: scheduledRuns.weekday,
-        timeOfDay: scheduledRuns.timeOfDay,
       })
       .from(scheduledRuns)
       .where(

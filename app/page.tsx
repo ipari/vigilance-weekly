@@ -63,7 +63,7 @@ export default async function Home() {
           </strong>
           <small>
             {nextSchedule
-              ? `${frequencyLabel(nextSchedule.frequency, nextSchedule.weekday)} · Asia/Seoul`
+              ? "Asia/Seoul 기준"
               : "설정에서 자동 실행 일정을 추가하세요"}
           </small>
         </div>
@@ -258,12 +258,4 @@ function formatSeoulSchedule(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function frequencyLabel(frequency: string, weekday: number | null) {
-  if (frequency === "daily") return "매일";
-  if (frequency === "weekly") {
-    return `매주 ${["일", "월", "화", "수", "목", "금", "토"][weekday ?? 1]}요일`;
-  }
-  return "1회성";
 }
