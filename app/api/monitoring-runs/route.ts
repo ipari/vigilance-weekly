@@ -88,7 +88,7 @@ export async function GET() {
           error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
           completed_at = CURRENT_TIMESTAMP
       WHERE status IN ('queued', 'running')
-        AND COALESCE(started_at, created_at) < ${timeoutCutoff}
+        AND COALESCE(last_activity_at, started_at, created_at) < ${timeoutCutoff}
     `);
     const rows = await getDb()
       .select()

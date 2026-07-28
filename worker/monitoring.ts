@@ -40,12 +40,13 @@ const RUN_TIMEOUT_MS = 90 * 60 * 1000;
 const MIN_REQUEST_INTERVAL_MS = 1500;
 const MAX_REQUEST_JITTER_MS = 500;
 const MAX_RETRY_AFTER_MS = 60_000;
+const FETCH_TIMEOUT_MS = 20_000;
+const STEP_LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 const nextRequestAtByHost = new Map<string, number>();
 
 export async function startMonitoringRun(
   request: Request,
   env: MonitoringEnv,
-  ctx: ExecutionContext,
 ) {
   const email = request.headers.get(USER_EMAIL_HEADER);
   if (!email) {
@@ -106,12 +107,6 @@ export async function startMonitoringRun(
   if (!Number.isInteger(runId) || runId < 1) {
     throw new Error("실행 기록을 생성하지 못했습니다.");
   }
-  ctx.waitUntil(
-    executeMonitoringRun(env, runId, activeMonitors, period).catch(() => {
-      // executeMonitoringRun persists its own failure state.
-    }),
-  );
-
   return Response.json(
     {
       run: {
@@ -138,132 +133,195 @@ export async function startMonitoringRun(
   );
 }
 
-async function executeMonitoringRun(
-  env: MonitoringEnv,
-  runId: number,
-  monitors: Monitor[],
-  period: ReturnType<typeof currentSeoulWeek>,
-) {
-  const literature: LiteratureResult[] = [];
-  const regulatory: RegulatoryResult[] = [];
-  const failures: string[] = [];
-  const totalSteps = monitors.length * 2;
-  let completedSteps = 0;
-  let successfulSteps = 0;
-  const deadline = Date.now() + RUN_TIMEOUT_MS;
+type ActiveRun = {
+  id: number;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  completedSteps: number;
+  totalSteps: number;
+  failedSteps: number;
+  monitorSnapshot: string;
+  literatureResults: string;
+  regulatoryResults: string;
+  errorMessage: string | null;
+};
 
-  try {
-    await updateRun(env, runId, {
-      status: "running",
-      stage: "문헌 검색 준비",
-      progress: 2,
-      completedSteps,
-      startedAt: new Date().toISOString(),
-    });
+export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const staleLock = new Date(now.getTime() - STEP_LOCK_TIMEOUT_MS).toISOString();
+  const candidate = await env.DB.prepare(
+    `SELECT id, completed_steps AS completedSteps,
+            literature_results AS literatureResults,
+            regulatory_results AS regulatoryResults
+     FROM monitoring_runs
+     WHERE status IN ('queued', 'running')
+     ORDER BY created_at, id
+     LIMIT 1`,
+  ).first<{
+    id: number;
+    completedSteps: number;
+    literatureResults: string;
+    regulatoryResults: string;
+  }>();
+  if (!candidate) return;
 
-    for (const monitor of monitors) {
-      await assertRunActive(env, runId, deadline);
-      await updateRun(env, runId, {
-        stage: `${monitor.ingredient} PubMed 문헌 검색 · 요청 간격 조절 중`,
-        progress: percent(completedSteps, totalSteps),
-        completedSteps,
-      });
-      try {
-        literature.push(...(await fetchPubMed(monitor, period)));
-        successfulSteps += 1;
-      } catch (error) {
-        failures.push(`${monitor.ingredient} PubMed: ${errorMessage(error)}`);
-      }
-      completedSteps += 1;
-      await delay(400);
-      await assertRunActive(env, runId, deadline);
-      await updateRun(env, runId, {
-        stage: `${monitor.ingredient} FDA 규제정보 검색 · 요청 간격 조절 중`,
-        progress: percent(completedSteps, totalSteps),
-        completedSteps,
-      });
-      try {
-        regulatory.push(...(await fetchFdaRecalls(monitor, period)));
-        successfulSteps += 1;
-      } catch (error) {
-        failures.push(`${monitor.ingredient} FDA: ${errorMessage(error)}`);
-      }
-      completedSteps += 1;
-      await delay(400);
-    }
-
-    await assertRunActive(env, runId, deadline);
-    if (successfulSteps === 0 && failures.length > 0) {
-      throw new Error(failures.join(" | "));
-    }
-
-    const uniqueLiterature = uniqueBy(literature, (item) => item.pmid);
-    const uniqueRegulatory = uniqueBy(
-      regulatory,
-      (item) => `${item.source}:${item.title}:${item.date}`,
-    );
-
-    const warningMessage = failures.length > 0 ? failures.join(" | ") : null;
-    const completedStage =
-      failures.length > 0
-        ? `리포트 작성 완료 · 일부 수집 실패 ${failures.length}건`
-        : "리포트 작성 완료";
-
+  // Runs created by the former monolithic worker advanced progress without
+  // checkpointing results. Restart those safely from the first source.
+  if (
+    candidate.completedSteps > 0 &&
+    candidate.literatureResults === "[]" &&
+    candidate.regulatoryResults === "[]"
+  ) {
     await env.DB.prepare(
       `UPDATE monitoring_runs
-       SET status = 'completed', stage = ?,
-           progress = 100, completed_steps = ?, completed_at = ?,
-           literature_results = ?, regulatory_results = ?, error_message = ?
-       WHERE id = ? AND status = 'running'`,
+       SET completed_steps = 0, progress = 0, failed_steps = 0,
+           error_message = NULL, stage = '중단 지점 복구 · 처음부터 다시 수집'
+       WHERE id = ? AND status IN ('queued', 'running')`,
+    )
+      .bind(candidate.id)
+      .run();
+  }
+
+  const token = crypto.randomUUID();
+  const claimed = await env.DB.prepare(
+    `UPDATE monitoring_runs
+     SET step_lock_token = ?, step_lock_at = ?, last_activity_at = ?,
+         status = 'running', started_at = COALESCE(started_at, ?)
+     WHERE id = ? AND status IN ('queued', 'running')
+       AND (step_lock_token IS NULL OR step_lock_at < ?)`,
+  )
+    .bind(token, nowIso, nowIso, nowIso, candidate.id, staleLock)
+    .run();
+  if (Number(claimed.meta.changes ?? 0) !== 1) return;
+
+  const run = await env.DB.prepare(
+    `SELECT id, status, period_start AS periodStart, period_end AS periodEnd,
+            completed_steps AS completedSteps, total_steps AS totalSteps,
+            failed_steps AS failedSteps, monitor_snapshot AS monitorSnapshot,
+            literature_results AS literatureResults,
+            regulatory_results AS regulatoryResults, error_message AS errorMessage
+     FROM monitoring_runs
+     WHERE id = ? AND step_lock_token = ?`,
+  )
+    .bind(candidate.id, token)
+    .first<ActiveRun>();
+  if (!run) return;
+
+  try {
+    const monitors = JSON.parse(run.monitorSnapshot) as Monitor[];
+    const step = run.completedSteps;
+    if (!Array.isArray(monitors) || step >= run.totalSteps) {
+      await completeRun(env, run, token);
+      return;
+    }
+    const monitor = monitors[Math.floor(step / 2)];
+    if (!monitor) throw new Error("저장된 감시 대상 정보를 읽을 수 없습니다.");
+    const isLiterature = step % 2 === 0;
+    const source = isLiterature ? "PubMed 문헌" : "FDA 규제정보";
+    await env.DB.prepare(
+      `UPDATE monitoring_runs
+       SET stage = ?, last_activity_at = ?
+       WHERE id = ? AND step_lock_token = ?`,
     )
       .bind(
-        completedStage,
-        totalSteps,
+        `${monitor.ingredient} ${source} 검색 · 요청 간격 조절 중`,
         new Date().toISOString(),
-        JSON.stringify(uniqueLiterature),
-        JSON.stringify(uniqueRegulatory),
-        warningMessage,
-        runId,
+        run.id,
+        token,
+      )
+      .run();
+
+    let literature = safeArray<LiteratureResult>(run.literatureResults);
+    let regulatory = safeArray<RegulatoryResult>(run.regulatoryResults);
+    let failedSteps = run.failedSteps;
+    let warning = run.errorMessage;
+    try {
+      const period = { periodStart: run.periodStart, periodEnd: run.periodEnd };
+      if (isLiterature) {
+        literature = uniqueBy(
+          [...literature, ...(await fetchPubMed(monitor, period))],
+          (item) => item.pmid,
+        );
+      } else {
+        regulatory = uniqueBy(
+          [...regulatory, ...(await fetchFdaRecalls(monitor, period))],
+          (item) => `${item.source}:${item.title}:${item.date}`,
+        );
+      }
+    } catch (error) {
+      failedSteps += 1;
+      const itemWarning = `${monitor.ingredient} ${isLiterature ? "PubMed" : "FDA"}: ${errorMessage(error)}`;
+      warning = [warning, itemWarning].filter(Boolean).join(" | ");
+    }
+
+    const completedSteps = step + 1;
+    const finished = completedSteps >= run.totalSteps;
+    await env.DB.prepare(
+      `UPDATE monitoring_runs
+       SET status = ?, stage = ?, progress = ?, completed_steps = ?,
+           failed_steps = ?, literature_results = ?, regulatory_results = ?,
+           error_message = ?, completed_at = ?, last_activity_at = ?,
+           step_lock_token = NULL, step_lock_at = NULL
+       WHERE id = ? AND step_lock_token = ? AND status = 'running'`,
+    )
+      .bind(
+        finished ? "completed" : "running",
+        finished
+          ? failedSteps > 0
+            ? `리포트 작성 완료 · 일부 수집 실패 ${failedSteps}건`
+            : "리포트 작성 완료"
+          : `다음 수집 단계 대기 · ${completedSteps}/${run.totalSteps}`,
+        finished ? 100 : percent(completedSteps, run.totalSteps),
+        completedSteps,
+        failedSteps,
+        JSON.stringify(literature),
+        JSON.stringify(regulatory),
+        warning,
+        finished ? new Date().toISOString() : null,
+        new Date().toISOString(),
+        run.id,
+        token,
       )
       .run();
   } catch (error) {
-    const current = await env.DB.prepare(
-      "SELECT status FROM monitoring_runs WHERE id = ?",
-    )
-      .bind(runId)
-      .first<{ status: string }>();
-    if (current && !["queued", "running"].includes(current.status)) return;
-
     await env.DB.prepare(
       `UPDATE monitoring_runs
-       SET status = 'failed', stage = '업데이트 실패',
-           error_message = ?, completed_at = ?
-       WHERE id = ?`,
+       SET status = 'failed', stage = '업데이트 실패', error_message = ?,
+           completed_at = ?, last_activity_at = ?,
+           step_lock_token = NULL, step_lock_at = NULL
+       WHERE id = ? AND step_lock_token = ?`,
     )
       .bind(
         errorMessage(error),
         new Date().toISOString(),
-        runId,
+        new Date().toISOString(),
+        run.id,
+        token,
       )
       .run();
   }
 }
 
-async function assertRunActive(
-  env: MonitoringEnv,
-  runId: number,
-  deadline: number,
-) {
-  if (Date.now() >= deadline) {
-    throw new Error("리포트 생성 제한 시간 90분을 초과했습니다.");
-  }
-  const run = await env.DB.prepare(
-    "SELECT status FROM monitoring_runs WHERE id = ?",
+async function completeRun(env: MonitoringEnv, run: ActiveRun, token: string) {
+  await env.DB.prepare(
+    `UPDATE monitoring_runs
+     SET status = 'completed', stage = '리포트 작성 완료', progress = 100,
+         completed_at = ?, last_activity_at = ?,
+         step_lock_token = NULL, step_lock_at = NULL
+     WHERE id = ? AND step_lock_token = ?`,
   )
-    .bind(runId)
-    .first<{ status: string }>();
-  if (!run || !["queued", "running"].includes(run.status)) {
-    throw new Error("리포트 실행이 취소되었거나 종료되었습니다.");
+    .bind(new Date().toISOString(), new Date().toISOString(), run.id, token)
+    .run();
+}
+
+function safeArray<T>(value: string): T[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 }
 
@@ -421,7 +479,6 @@ async function fetchFdaRecalls(
 
 export async function runScheduledMonitoring(
   env: MonitoringEnv,
-  ctx: ExecutionContext,
   scheduledTime = Date.now(),
 ) {
   const cutoff = new Date(scheduledTime - RUN_TIMEOUT_MS).toISOString();
@@ -431,7 +488,7 @@ export async function runScheduledMonitoring(
          error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
          completed_at = ?
      WHERE status IN ('queued', 'running')
-       AND COALESCE(started_at, created_at) < ?`,
+       AND COALESCE(last_activity_at, started_at, created_at) < ?`,
   )
     .bind(new Date(scheduledTime).toISOString(), cutoff)
     .run();
@@ -460,7 +517,7 @@ export async function runScheduledMonitoring(
     if (Number(claimed.meta.changes ?? 0) !== 1) continue;
 
     try {
-      const run = await startSystemRun(env, ctx, "scheduled");
+      const run = await startSystemRun(env, "scheduled");
       if (schedule.frequency === "once") {
         await env.DB.prepare(
           `UPDATE scheduled_runs
@@ -504,14 +561,13 @@ export async function runScheduledMonitoring(
 
 async function startSystemRun(
   env: MonitoringEnv,
-  ctx: ExecutionContext,
   triggerType: "scheduled" | "scheduled_test",
 ) {
   const request = new Request("https://internal/api/monitoring-runs", {
     method: "POST",
     headers: { [USER_EMAIL_HEADER]: "site-scheduler@vigilance-weekly" },
   });
-  const response = await startMonitoringRun(request, env, ctx);
+  const response = await startMonitoringRun(request, env);
   const payload = (await response.json()) as {
     run?: { id: number };
     error?: string;
@@ -538,7 +594,10 @@ async function fetchWithRetry(
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await waitForRequestSlot(input.hostname);
-      const response = await fetch(input, init);
+      const response = await fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       const retryable =
         response.status === 408 ||
         response.status === 425 ||
@@ -595,34 +654,6 @@ function delay(milliseconds: number) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "알 수 없는 수집 오류";
-}
-
-async function updateRun(
-  env: MonitoringEnv,
-  runId: number,
-  update: {
-    status?: string;
-    stage: string;
-    progress: number;
-    completedSteps: number;
-    startedAt?: string;
-  },
-) {
-  await env.DB.prepare(
-    `UPDATE monitoring_runs
-     SET status = COALESCE(?, status), stage = ?, progress = ?,
-         completed_steps = ?, started_at = COALESCE(?, started_at)
-     WHERE id = ?`,
-  )
-    .bind(
-      update.status ?? null,
-      update.stage,
-      update.progress,
-      update.completedSteps,
-      update.startedAt ?? null,
-      runId,
-    )
-    .run();
 }
 
 function percent(completed: number, total: number) {

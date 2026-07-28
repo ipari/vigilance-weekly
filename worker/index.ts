@@ -1,7 +1,11 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { runScheduledMonitoring, startMonitoringRun } from "./monitoring";
+import {
+  resumeActiveMonitoringRun,
+  runScheduledMonitoring,
+  startMonitoringRun,
+} from "./monitoring";
 
 interface Env {
   ASSETS: Fetcher;
@@ -38,14 +42,21 @@ const worker = {
     // The management screen polls this route, so use that request as a
     // production-safe heartbeat for due one-off and weekly runs.
     if (url.pathname === "/api/schedules" && request.method === "GET") {
-      await runScheduledMonitoring(env, ctx, Date.now());
+      await runScheduledMonitoring(env, Date.now());
     }
 
     if (
       url.pathname === "/api/monitoring-runs" &&
       request.method === "POST"
     ) {
-      return startMonitoringRun(request, env, ctx);
+      return startMonitoringRun(request, env);
+    }
+
+    if (
+      url.pathname === "/api/monitoring-runs" &&
+      request.method === "GET"
+    ) {
+      await resumeActiveMonitoringRun(env);
     }
 
     if (url.pathname === "/_vinext/image") {
@@ -66,7 +77,7 @@ const worker = {
     env: Env,
     ctx: ExecutionContext,
   ) {
-    ctx.waitUntil(runScheduledMonitoring(env, ctx, controller.scheduledTime));
+    ctx.waitUntil(runScheduledMonitoring(env, controller.scheduledTime));
   },
 };
 
