@@ -32,12 +32,17 @@ type MonitoringRun = {
 type ScheduledRun = {
   id: number;
   executeAt: string;
+  frequency: "once" | "daily" | "weekly";
+  weekday: number | null;
+  timeOfDay: string;
   status: string;
+  active: boolean;
   runId: number | null;
   errorMessage: string | null;
 };
 
 const PAGE_SIZE = 8;
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function MonitorManager() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
@@ -53,8 +58,15 @@ export default function MonitorManager() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [schedules, setSchedules] = useState<ScheduledRun[]>([]);
   const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleFrequency, setScheduleFrequency] = useState<"once" | "daily" | "weekly">("once");
+  const [scheduleTime, setScheduleTime] = useState("06:00");
+  const [scheduleWeekday, setScheduleWeekday] = useState(1);
+  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
   const [scheduleMessage, setScheduleMessage] = useState("");
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [editingMonitor, setEditingMonitor] = useState<Monitor | null>(null);
+  const [editingReportId, setEditingReportId] = useState<number | null>(null);
+  const [reportName, setReportName] = useState("");
 
   useEffect(() => {
     void Promise.all([
@@ -97,11 +109,19 @@ export default function MonitorManager() {
     setScheduleLoading(true);
     setScheduleMessage("");
     try {
-      const response = await fetch("/api/schedules", {
-        method: "POST",
+      const response = await fetch(
+        editingScheduleId ? `/api/schedules?id=${editingScheduleId}` : "/api/schedules",
+        {
+        method: editingScheduleId ? "PATCH" : "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          executeAt: new Date(`${scheduleAt}:00+09:00`).toISOString(),
+          frequency: scheduleFrequency,
+          executeAt:
+            scheduleFrequency === "once" && scheduleAt
+              ? new Date(`${scheduleAt}:00+09:00`).toISOString()
+              : undefined,
+          timeOfDay: scheduleTime,
+          weekday: scheduleWeekday,
         }),
       });
       const payload = await response.json();
@@ -109,21 +129,90 @@ export default function MonitorManager() {
         setScheduleMessage(payload.error ?? "예약을 등록하지 못했습니다.");
         return;
       }
-      setScheduleAt("");
-      setScheduleMessage("예약 실행을 등록했습니다.");
+      resetScheduleForm();
+      setScheduleMessage(editingScheduleId ? "일정을 수정했습니다." : "일정을 등록했습니다.");
       await loadSchedules();
     } finally {
       setScheduleLoading(false);
     }
   }
 
-  async function cancelSchedule(id: number) {
+  async function deleteSchedule(id: number) {
+    if (!window.confirm("이 자동 실행 일정을 삭제할까요?")) return;
     const response = await fetch(`/api/schedules?id=${id}`, { method: "DELETE" });
     const payload = await response.json();
     setScheduleMessage(
-      response.ok ? "예약을 취소했습니다." : payload.error ?? "예약을 취소하지 못했습니다.",
+      response.ok ? "일정을 삭제했습니다." : payload.error ?? "일정을 삭제하지 못했습니다.",
     );
     if (response.ok) await loadSchedules();
+  }
+
+  function editSchedule(schedule: ScheduledRun) {
+    setEditingScheduleId(schedule.id);
+    setScheduleFrequency(schedule.frequency);
+    setScheduleTime(schedule.timeOfDay);
+    setScheduleWeekday(schedule.weekday ?? 1);
+    setScheduleAt(toSeoulDateTimeInput(schedule.executeAt));
+    setScheduleMessage("");
+  }
+
+  function resetScheduleForm() {
+    setEditingScheduleId(null);
+    setScheduleFrequency("once");
+    setScheduleAt("");
+    setScheduleTime("06:00");
+    setScheduleWeekday(1);
+  }
+
+  async function saveMonitor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingMonitor) return;
+    const response = await fetch(`/api/monitors?id=${editingMonitor.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(editingMonitor),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error ?? "감시 대상을 수정하지 못했습니다.");
+      return;
+    }
+    setMonitors((current) =>
+      current.map((item) => (item.id === payload.monitor.id ? payload.monitor : item)),
+    );
+    setEditingMonitor(null);
+    setMessage("감시 대상을 수정했습니다.");
+  }
+
+  async function deleteMonitor(monitor: Monitor) {
+    if (!window.confirm(`${monitor.ingredient} 감시 대상을 삭제할까요?`)) return;
+    const response = await fetch(`/api/monitors?id=${monitor.id}`, { method: "DELETE" });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error ?? "감시 대상을 삭제하지 못했습니다.");
+      return;
+    }
+    setMonitors((current) => current.filter((item) => item.id !== monitor.id));
+    setMessage("감시 대상을 삭제했습니다.");
+  }
+
+  async function saveReportName(id: number) {
+    const response = await fetch(`/api/monitoring-runs?id=${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: reportName }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setRunMessage(payload.error ?? "리포트 이름을 수정하지 못했습니다.");
+      return;
+    }
+    setRuns((current) =>
+      current.map((item) => (item.id === id ? { ...item, reportLabel: payload.run.reportLabel } : item)),
+    );
+    if (run?.id === id) setRun({ ...run, reportLabel: payload.run.reportLabel });
+    setEditingReportId(null);
+    setRunMessage("리포트 이름을 수정했습니다.");
   }
 
   async function cancelRun(target: MonitoringRun) {
@@ -298,50 +387,75 @@ export default function MonitorManager() {
           <div>
             <h2>예약 실행</h2>
             <p className="panelIntro">
-              매주 월요일 06:00 자동 실행 · 예약 화면을 열어 두면 정해진 시각에 실행 · 제한 시간 30분
+              1회·매일·매주 일정을 여러 개 등록할 수 있습니다 · 예약 관리 화면이 열려 있는 동안 실행 시각을 확인합니다 · Asia/Seoul
             </p>
           </div>
         </div>
         <form className="scheduleForm" onSubmit={createSchedule}>
           <label>
-            실행할 날짜와 시각
-            <input
-              type="datetime-local"
-              value={scheduleAt}
-              onChange={(event) => setScheduleAt(event.target.value)}
-              required
-            />
+            반복
+            <select
+              value={scheduleFrequency}
+              onChange={(event) => setScheduleFrequency(event.target.value as "once" | "daily" | "weekly")}
+            >
+              <option value="once">1회성</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+            </select>
           </label>
-          <span>Asia/Seoul</span>
+          {scheduleFrequency === "once" ? (
+            <label>
+              실행할 날짜와 시각
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(event) => setScheduleAt(event.target.value)}
+                required
+              />
+            </label>
+          ) : (
+            <>
+              {scheduleFrequency === "weekly" && (
+                <label>
+                  요일
+                  <select value={scheduleWeekday} onChange={(event) => setScheduleWeekday(Number(event.target.value))}>
+                    {WEEKDAYS.map((day, index) => <option value={index} key={day}>{day}요일</option>)}
+                  </select>
+                </label>
+              )}
+              <label>
+                실행 시각
+                <input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} required />
+              </label>
+            </>
+          )}
           <button type="submit" disabled={scheduleLoading}>
-            {scheduleLoading ? "예약 중" : "예약 등록"}
+            {scheduleLoading ? "저장 중" : editingScheduleId ? "일정 저장" : "일정 추가"}
           </button>
+          {editingScheduleId && <button className="secondaryButton" type="button" onClick={resetScheduleForm}>취소</button>}
         </form>
         {scheduleMessage && <p className="formMessage">{scheduleMessage}</p>}
         <div className="scheduleList">
           {schedules.map((schedule) => (
             <article key={schedule.id}>
               <div>
-                <strong>{formatSeoulDateTime(schedule.executeAt)}</strong>
+                <strong>{scheduleLabel(schedule)}</strong>
                 <small>
-                  {schedule.status === "pending"
-                    ? "실행 대기"
-                    : schedule.status === "triggered"
-                      ? `실행 시작${schedule.runId ? ` · 리포트 #${schedule.runId}` : ""}`
-                      : schedule.status === "canceled"
-                        ? "예약 취소"
-                        : "예약 실패"}
+                  {schedule.frequency === "once" && schedule.status === "triggered"
+                    ? "실행 완료"
+                    : `다음 실행 ${formatSeoulDateTime(schedule.executeAt)}`}
+                  {schedule.runId ? ` · 최근 리포트 #${schedule.runId}` : ""}
+                  {schedule.status === "failed" ? ` · 실패${schedule.errorMessage ? `: ${schedule.errorMessage}` : ""}` : ""}
                 </small>
               </div>
-              {schedule.status === "pending" && (
-                <button type="button" onClick={() => cancelSchedule(schedule.id)}>
-                  예약 취소
-                </button>
-              )}
+              <div className="rowActions">
+                <button type="button" onClick={() => editSchedule(schedule)}>수정</button>
+                <button className="dangerButton" type="button" onClick={() => deleteSchedule(schedule.id)}>삭제</button>
+              </div>
             </article>
           ))}
           {schedules.length === 0 && (
-            <div className="emptyState">등록된 일회성 예약이 없습니다.</div>
+            <div className="emptyState">등록된 자동 실행 일정이 없습니다.</div>
           )}
         </div>
       </section>
@@ -372,9 +486,24 @@ export default function MonitorManager() {
         </form>
         {message && <p className="formMessage">{message}</p>}
 
+        {editingMonitor && (
+          <form className="editMonitorForm" onSubmit={saveMonitor}>
+            <div className="editFormHeading">
+              <strong>감시 대상 수정</strong>
+              <button type="button" onClick={() => setEditingMonitor(null)}>닫기</button>
+            </div>
+            <label>성분명<input value={editingMonitor.ingredient} onChange={(event) => setEditingMonitor({ ...editingMonitor, ingredient: event.target.value })} required /></label>
+            <label>제품명<input value={editingMonitor.productName} onChange={(event) => setEditingMonitor({ ...editingMonitor, productName: event.target.value })} /></label>
+            <label>검색 동의어<input value={editingMonitor.aliases} onChange={(event) => setEditingMonitor({ ...editingMonitor, aliases: event.target.value })} /></label>
+            <label>감시 지역<select value={editingMonitor.regions} onChange={(event) => setEditingMonitor({ ...editingMonitor, regions: event.target.value })}><option value="KR,US,EU">한국 · 미국 · 유럽</option><option value="KR">한국</option><option value="US">미국</option><option value="EU">유럽</option></select></label>
+            <label className="checkboxLabel"><input type="checkbox" checked={editingMonitor.active} onChange={(event) => setEditingMonitor({ ...editingMonitor, active: event.target.checked })} />활성 상태</label>
+            <button className="saveEditButton" type="submit">변경사항 저장</button>
+          </form>
+        )}
+
         <div className="monitorTableWrap">
           <table className="monitorTable">
-            <thead><tr><th>성분명</th><th>제품명</th><th>검색 동의어</th><th>지역</th><th>상태</th></tr></thead>
+            <thead><tr><th>성분명</th><th>제품명</th><th>검색 동의어</th><th>지역</th><th>상태</th><th>관리</th></tr></thead>
             <tbody>
               {visibleMonitors.map((monitor) => (
                 <tr key={monitor.id}>
@@ -383,6 +512,12 @@ export default function MonitorManager() {
                   <td>{monitor.aliases || "—"}</td>
                   <td>{regionLabel(monitor.regions)}</td>
                   <td><span className="activePill">{monitor.active ? "활성" : "중지"}</span></td>
+                  <td>
+                    <div className="rowActions">
+                      <button type="button" onClick={() => setEditingMonitor({ ...monitor })}>수정</button>
+                      <button className="dangerButton" type="button" onClick={() => deleteMonitor(monitor)}>삭제</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -409,7 +544,39 @@ export default function MonitorManager() {
           {runs.map((item) => (
             <article className="adminReportRow" key={item.id}>
               <div>
-                <strong>{item.reportLabel}</strong>
+                {editingReportId === item.id ? (
+                  <form
+                    className="reportNameForm"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveReportName(item.id);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      maxLength={80}
+                      value={reportName}
+                      onChange={(event) => setReportName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setEditingReportId(null);
+                      }}
+                    />
+                    <button type="submit">저장</button>
+                    <button type="button" onClick={() => setEditingReportId(null)}>취소</button>
+                  </form>
+                ) : (
+                  <button
+                    className="reportNameButton"
+                    type="button"
+                    title="이름 수정"
+                    onClick={() => {
+                      setEditingReportId(item.id);
+                      setReportName(item.reportLabel);
+                    }}
+                  >
+                    {item.reportLabel}
+                  </button>
+                )}
                 <small>{item.periodStart} — {item.periodEnd} · {item.monitorCount}개 약물</small>
                 {item.errorMessage && (
                   <small className="reportRunError">
@@ -466,6 +633,28 @@ function formatSeoulDateTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function toSeoulDateTimeInput(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+function scheduleLabel(schedule: ScheduledRun) {
+  if (schedule.frequency === "daily") return `매일 ${schedule.timeOfDay}`;
+  if (schedule.frequency === "weekly") {
+    return `매주 ${WEEKDAYS[schedule.weekday ?? 1]}요일 ${schedule.timeOfDay}`;
+  }
+  return `1회 · ${formatSeoulDateTime(schedule.executeAt)}`;
 }
 
 function regionLabel(regions: string) {

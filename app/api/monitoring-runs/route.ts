@@ -50,7 +50,9 @@ function serializeRun(run: typeof monitoringRuns.$inferSelect) {
     id: run.id,
     weekKey: run.weekKey,
     reportSequence: run.reportSequence,
-    reportLabel: `${formatWeekLabel(run.weekKey)}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`,
+    reportLabel:
+      run.customName?.trim() ||
+      `${formatWeekLabel(run.weekKey)}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`,
     periodStart: run.periodStart,
     periodEnd: run.periodEnd,
     status: run.status,
@@ -119,7 +121,27 @@ export async function PATCH(request: Request) {
 
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id < 1) {
-    return Response.json({ error: "취소할 리포트가 올바르지 않습니다." }, { status: 400 });
+    return Response.json({ error: "리포트가 올바르지 않습니다." }, { status: 400 });
+  }
+
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    const body = (await request.json()) as { name?: unknown };
+    const name = String(body.name ?? "").trim();
+    if (!name) {
+      return Response.json({ error: "리포트 이름을 입력해 주세요." }, { status: 400 });
+    }
+    if (name.length > 80) {
+      return Response.json({ error: "리포트 이름은 80자 이내로 입력해 주세요." }, { status: 400 });
+    }
+    const [updated] = await getDb()
+      .update(monitoringRuns)
+      .set({ customName: name })
+      .where(eq(monitoringRuns.id, id))
+      .returning();
+    if (!updated) {
+      return Response.json({ error: "리포트를 찾을 수 없습니다." }, { status: 404 });
+    }
+    return Response.json({ run: serializeRun(updated) });
   }
 
   const result = await getDb().run(sql`

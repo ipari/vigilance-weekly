@@ -234,17 +234,21 @@ footer .brandMark { width: 27px; height: 27px; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .targetPanel, .reportAdminPanel { margin-top: 18px; }
 .schedulePanel { margin: 18px 0; }
-.scheduleForm { display: grid; grid-template-columns: minmax(240px, 1fr) auto auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f5f8f6; }
+.scheduleForm { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f5f8f6; }
 .scheduleForm label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 700; }
-.scheduleForm input { height: 40px; padding: 8px 11px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; }
+.scheduleForm input, .scheduleForm select { height: 40px; padding: 8px 11px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; }
 .scheduleForm > span { height: 40px; display: flex; align-items: center; color: var(--muted); font-size: 11px; }
 .scheduleForm button { height: 40px; padding: 0 17px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 720; cursor: pointer; }
+.scheduleForm .secondaryButton { border: 1px solid var(--line); background: white; color: var(--muted); }
 .scheduleList { display: grid; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .scheduleList article { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .scheduleList article:last-child { border-bottom: 0; }
-.scheduleList article > div { display: grid; gap: 4px; }
+.scheduleList article > div:first-child { display: grid; gap: 4px; }
 .scheduleList small { color: var(--muted); }
 .scheduleList button, .cancelInlineButton { padding: 7px 10px; border: 1px solid #e1b981; border-radius: 6px; background: white; color: #94601f; cursor: pointer; font-size: 11px; }
+.rowActions { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.rowActions button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--green); cursor: pointer; font-size: 11px; }
+.rowActions .dangerButton { border-color: #e3c6c1; color: #a4473d; }
 .panelHeadingRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .panelHeadingRow .panelIntro { margin: 7px 0 0; }
 .monitorSearch input { width: min(320px, 34vw); padding: 10px 13px; border: 1px solid #ccd5d0; border-radius: 7px; background: #f8faf8; outline: none; }
@@ -254,6 +258,14 @@ footer .brandMark { width: 27px; height: 27px; }
 .quickMonitorForm input, .quickMonitorForm select { min-width: 0; width: 100%; height: 39px; padding: 8px 10px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; outline: none; }
 .quickMonitorForm input:focus, .quickMonitorForm select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13,107,79,.08); }
 .quickMonitorForm button { height: 39px; padding: 0 16px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 720; cursor: pointer; white-space: nowrap; }
+.editMonitorForm { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) auto auto; gap: 10px; margin: 0 0 16px; padding: 16px; border: 1px solid #9fc8b9; border-radius: 8px; background: #f1f8f5; align-items: end; }
+.editFormHeading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+.editFormHeading button { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.editMonitorForm label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 750; }
+.editMonitorForm input, .editMonitorForm select { min-width: 0; width: 100%; height: 39px; padding: 8px 10px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; }
+.editMonitorForm .checkboxLabel { display: flex; align-items: center; gap: 7px; height: 39px; white-space: nowrap; }
+.editMonitorForm .checkboxLabel input { width: 16px; height: 16px; }
+.saveEditButton { height: 39px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 700; cursor: pointer; }
 .monitorTableWrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
 .monitorTable { width: 100%; border-collapse: collapse; background: white; font-size: 12px; }
 .monitorTable th { padding: 11px 14px; color: var(--muted); background: #f4f7f5; border-bottom: 1px solid var(--line); text-align: left; font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
@@ -268,6 +280,10 @@ footer .brandMark { width: 27px; height: 27px; }
 .adminReportRow { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto auto; align-items: center; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); background: white; }
 .adminReportRow:last-child { border-bottom: 0; }
 .adminReportRow > div { display: grid; gap: 5px; }
+.reportNameButton { width: fit-content; padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 720; text-align: left; cursor: text; border-bottom: 1px dashed #a8b6af; }
+.reportNameForm { display: flex; gap: 6px; align-items: center; }
+.reportNameForm input { width: min(360px, 100%); height: 34px; padding: 6px 9px; border: 1px solid var(--green); border-radius: 5px; }
+.reportNameForm button { padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--green); cursor: pointer; }
 .adminReportRow small { color: var(--muted); font-size: 11px; }
 .adminReportRow .reportRunError { color: #a4473d; }
 .adminReportRow > a { color: var(--green); font-size: 12px; font-weight: 720; }
@@ -295,9 +311,9 @@ footer .brandMark { width: 27px; height: 27px; }
   .cta { flex-direction: column; align-items: flex-start; }
   footer { flex-direction: column; align-items: flex-start; }
   .quickMonitorForm { grid-template-columns: 1fr 1fr; }
-  .scheduleForm { grid-template-columns: 1fr auto; }
-  .scheduleForm label { grid-column: 1 / -1; }
+  .scheduleForm { grid-template-columns: 1fr 1fr; }
   .quickMonitorForm button { grid-column: 1 / -1; }
+  .editMonitorForm { grid-template-columns: 1fr 1fr; }
   .adminReportRow { grid-template-columns: 1fr auto auto; }
   .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }
   .adminReportRow > a { grid-column: 2; }
@@ -323,6 +339,7 @@ footer .brandMark { width: 27px; height: 27px; }
   .scheduleForm { grid-template-columns: 1fr; }
   .scheduleForm label { grid-column: auto; }
   .quickMonitorForm button { grid-column: auto; }
+  .editMonitorForm { grid-template-columns: 1fr; }
   .adminReportRow { grid-template-columns: 1fr auto; gap: 10px; }
   .adminReportRow .runStatus { grid-column: 2; grid-row: 1; }
   .adminReportRow > a { grid-column: 1; grid-row: 2; }

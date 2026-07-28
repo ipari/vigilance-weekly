@@ -53,9 +53,9 @@ export default async function Home() {
         </div>
         <div className="heroStatus">
           <span className="pulse" />
-          다음 모니터링
-          <strong>월요일 06:00</strong>
-          <small>Asia/Seoul</small>
+          자동 모니터링
+          <strong>등록된 일정에 따라</strong>
+          <small>Asia/Seoul 기준</small>
         </div>
       </section>
 

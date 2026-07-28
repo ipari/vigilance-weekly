@@ -76,7 +76,9 @@ function toPublicReport(
 
   return {
     slug: `run-${run.id}`,
-    week: `${baseWeek}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`,
+    week:
+      run.customName?.trim() ||
+      `${baseWeek}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`,
     range: `${formatKoreanDate(run.periodStart)} — ${formatKoreanDate(run.periodEnd)}`,
     updatedAt: formatKoreanTimestamp(run.createdAt),
     current: false,

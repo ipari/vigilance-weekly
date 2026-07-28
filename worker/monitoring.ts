@@ -1,3 +1,5 @@
+import { nextScheduleOccurrence } from "../lib/scheduling";
+
 interface MonitoringEnv {
   DB: D1Database;
 }
@@ -431,12 +433,18 @@ export async function runScheduledMonitoring(
     .run();
 
   const due = await env.DB.prepare(
-    `SELECT id FROM scheduled_runs
-     WHERE status = 'pending' AND execute_at <= ?
+    `SELECT id, frequency, weekday, time_of_day AS timeOfDay
+     FROM scheduled_runs
+     WHERE active = 1 AND status = 'pending' AND execute_at <= ?
      ORDER BY execute_at, id LIMIT 20`,
   )
     .bind(new Date(scheduledTime).toISOString())
-    .all<{ id: number }>();
+    .all<{
+      id: number;
+      frequency: "once" | "daily" | "weekly";
+      weekday: number | null;
+      timeOfDay: string;
+    }>();
 
   for (const schedule of due.results ?? []) {
     const claimed = await env.DB.prepare(
@@ -448,13 +456,36 @@ export async function runScheduledMonitoring(
     if (Number(claimed.meta.changes ?? 0) !== 1) continue;
 
     try {
-      const run = await startSystemRun(env, ctx, "scheduled_test");
-      await env.DB.prepare(
-        `UPDATE scheduled_runs SET status = 'triggered', run_id = ?
-         WHERE id = ?`,
-      )
-        .bind(run.id, schedule.id)
-        .run();
+      const run = await startSystemRun(env, ctx, "scheduled");
+      if (schedule.frequency === "once") {
+        await env.DB.prepare(
+          `UPDATE scheduled_runs
+           SET status = 'triggered', active = 0, run_id = ?, last_run_at = ?
+           WHERE id = ?`,
+        )
+          .bind(run.id, new Date(scheduledTime).toISOString(), schedule.id)
+          .run();
+      } else {
+        const nextExecuteAt = nextScheduleOccurrence(
+          schedule.frequency,
+          schedule.timeOfDay,
+          schedule.weekday,
+          new Date(scheduledTime),
+        );
+        await env.DB.prepare(
+          `UPDATE scheduled_runs
+           SET status = 'pending', run_id = ?, last_run_at = ?,
+               execute_at = ?, error_message = NULL
+           WHERE id = ?`,
+        )
+          .bind(
+            run.id,
+            new Date(scheduledTime).toISOString(),
+            nextExecuteAt,
+            schedule.id,
+          )
+          .run();
+      }
     } catch (error) {
       await env.DB.prepare(
         `UPDATE scheduled_runs SET status = 'failed', error_message = ?
@@ -465,18 +496,6 @@ export async function runScheduledMonitoring(
     }
   }
 
-  const seoul = seoulDateParts(new Date(scheduledTime));
-  if (seoul.weekday === "Mon" && seoul.hour === 6 && seoul.minute === 0) {
-    const period = currentSeoulWeek(new Date(scheduledTime));
-    const existing = await env.DB.prepare(
-      `SELECT id FROM monitoring_runs
-       WHERE week_key = ? AND trigger_type = 'scheduled'
-       LIMIT 1`,
-    )
-      .bind(period.weekKey)
-      .first<{ id: number }>();
-    if (!existing) await startSystemRun(env, ctx, "scheduled");
-  }
 }
 
 async function startSystemRun(
@@ -502,23 +521,6 @@ async function startSystemRun(
     .bind(triggerType, payload.run.id)
     .run();
   return payload.run;
-}
-
-function seoulDateParts(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const value = (type: string) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return {
-    weekday: value("weekday"),
-    hour: Number(value("hour")),
-    minute: Number(value("minute")),
-  };
 }
 
 async function fetchWithRetry(
