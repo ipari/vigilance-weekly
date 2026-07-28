@@ -17,8 +17,8 @@ export default async function MonitorsPage() {
         <div className="managerHeader">
           <div>
             <p className="eyebrow">MONITORING TARGETS</p>
-            <h1>감시 대상 관리</h1>
-            <p>매주 검색할 의약품과 지역을 등록하세요.</p>
+            <h1>설정</h1>
+            <p>감시 대상, 자동 실행 일정과 리포트를 관리하세요.</p>
           </div>
           <div className="userChip">
             <strong>{user.displayName}</strong>

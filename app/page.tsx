@@ -35,7 +35,7 @@ export default async function Home() {
           <a href="#report">최신 리포트</a>
           <a href="#archive">지난 리포트</a>
           {user ? (
-            <Link className="loginButton" href="/monitors">감시 대상 관리</Link>
+            <Link className="loginButton" href="/monitors">설정</Link>
           ) : (
             <Link className="loginButton" href={chatGPTSignInPath("/monitors")}>로그인</Link>
           )}
@@ -226,7 +226,7 @@ export default async function Home() {
           <p>로그인하면 성분명과 제품명, 검색 동의어 및 감시 지역을 등록할 수 있습니다.</p>
         </div>
         <Link href={user ? "/monitors" : chatGPTSignInPath("/monitors")}>
-          {user ? "감시 대상 관리" : "로그인하고 시작하기"} <span>→</span>
+          {user ? "설정" : "로그인하고 시작하기"} <span>→</span>
         </Link>
       </section>
 

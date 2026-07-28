@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Monitor = {
   id: number;
@@ -57,7 +57,9 @@ export default function MonitorManager() {
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [schedules, setSchedules] = useState<ScheduledRun[]>([]);
-  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleYear, setScheduleYear] = useState("");
+  const [scheduleMonth, setScheduleMonth] = useState("");
+  const [scheduleDay, setScheduleDay] = useState("");
   const [scheduleFrequency, setScheduleFrequency] = useState<"once" | "daily" | "weekly">("once");
   const [scheduleTime, setScheduleTime] = useState("06:00");
   const [scheduleWeekday, setScheduleWeekday] = useState(1);
@@ -67,6 +69,8 @@ export default function MonitorManager() {
   const [editingMonitor, setEditingMonitor] = useState<Monitor | null>(null);
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [reportName, setReportName] = useState("");
+  const scheduleMonthRef = useRef<HTMLInputElement>(null);
+  const scheduleDayRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void Promise.all([
@@ -109,6 +113,29 @@ export default function MonitorManager() {
     setScheduleLoading(true);
     setScheduleMessage("");
     try {
+      let executeAt: string | undefined;
+      if (scheduleFrequency === "once") {
+        const month = Number(scheduleMonth);
+        const day = Number(scheduleDay);
+        if (
+          scheduleYear.length !== 4 ||
+          month < 1 ||
+          month > 12 ||
+          day < 1 ||
+          day > 31
+        ) {
+          setScheduleMessage("연도 4자리와 올바른 월·일을 입력해 주세요.");
+          return;
+        }
+        const parsed = new Date(
+          `${scheduleYear}-${scheduleMonth.padStart(2, "0")}-${scheduleDay.padStart(2, "0")}T${scheduleTime}:00+09:00`,
+        );
+        if (!Number.isFinite(parsed.getTime())) {
+          setScheduleMessage("올바른 날짜와 시각을 입력해 주세요.");
+          return;
+        }
+        executeAt = parsed.toISOString();
+      }
       const response = await fetch(
         editingScheduleId ? `/api/schedules?id=${editingScheduleId}` : "/api/schedules",
         {
@@ -116,10 +143,7 @@ export default function MonitorManager() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           frequency: scheduleFrequency,
-          executeAt:
-            scheduleFrequency === "once" && scheduleAt
-              ? new Date(`${scheduleAt}:00+09:00`).toISOString()
-              : undefined,
+          executeAt,
           timeOfDay: scheduleTime,
           weekday: scheduleWeekday,
         }),
@@ -152,14 +176,19 @@ export default function MonitorManager() {
     setScheduleFrequency(schedule.frequency);
     setScheduleTime(schedule.timeOfDay);
     setScheduleWeekday(schedule.weekday ?? 1);
-    setScheduleAt(toSeoulDateTimeInput(schedule.executeAt));
+    const dateParts = toSeoulDateParts(schedule.executeAt);
+    setScheduleYear(dateParts.year);
+    setScheduleMonth(dateParts.month);
+    setScheduleDay(dateParts.day);
     setScheduleMessage("");
   }
 
   function resetScheduleForm() {
     setEditingScheduleId(null);
     setScheduleFrequency("once");
-    setScheduleAt("");
+    setScheduleYear("");
+    setScheduleMonth("");
+    setScheduleDay("");
     setScheduleTime("06:00");
     setScheduleWeekday(1);
   }
@@ -404,14 +433,60 @@ export default function MonitorManager() {
             </select>
           </label>
           {scheduleFrequency === "once" ? (
-            <label>
+            <label className="oneTimeScheduleFields">
               실행할 날짜와 시각
-              <input
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(event) => setScheduleAt(event.target.value)}
-                required
-              />
+              <span className="dateTimeFields">
+                <input
+                  aria-label="실행 연도"
+                  inputMode="numeric"
+                  maxLength={4}
+                  pattern="\d{4}"
+                  placeholder="YYYY"
+                  value={scheduleYear}
+                  onChange={(event) => {
+                    const value = digits(event.target.value, 4);
+                    setScheduleYear(value);
+                    if (value.length === 4) scheduleMonthRef.current?.focus();
+                  }}
+                  required
+                />
+                <span>년</span>
+                <input
+                  ref={scheduleMonthRef}
+                  aria-label="실행 월"
+                  inputMode="numeric"
+                  maxLength={2}
+                  pattern="\d{1,2}"
+                  placeholder="MM"
+                  value={scheduleMonth}
+                  onChange={(event) => {
+                    const value = digits(event.target.value, 2);
+                    setScheduleMonth(value);
+                    if (value.length === 2) scheduleDayRef.current?.focus();
+                  }}
+                  required
+                />
+                <span>월</span>
+                <input
+                  ref={scheduleDayRef}
+                  aria-label="실행 일"
+                  inputMode="numeric"
+                  maxLength={2}
+                  pattern="\d{1,2}"
+                  placeholder="DD"
+                  value={scheduleDay}
+                  onChange={(event) => setScheduleDay(digits(event.target.value, 2))}
+                  required
+                />
+                <span>일</span>
+                <input
+                  aria-label="실행 시각"
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(event) => setScheduleTime(event.target.value)}
+                  required
+                />
+              </span>
             </label>
           ) : (
             <>
@@ -635,7 +710,7 @@ function formatSeoulDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function toSeoulDateTimeInput(value: string) {
+function toSeoulDateParts(value: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -646,7 +721,15 @@ function toSeoulDateTimeInput(value: string) {
     hourCycle: "h23",
   }).formatToParts(new Date(value));
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+  };
+}
+
+function digits(value: string, maxLength: number) {
+  return value.replace(/\D/g, "").slice(0, maxLength);
 }
 
 function scheduleLabel(schedule: ScheduledRun) {

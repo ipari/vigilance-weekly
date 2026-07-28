@@ -237,6 +237,12 @@ footer .brandMark { width: 27px; height: 27px; }
 .scheduleForm { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #f5f8f6; }
 .scheduleForm label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .scheduleForm input, .scheduleForm select { height: 40px; padding: 8px 11px; border: 1px solid #ccd5d0; border-radius: 6px; background: white; }
+.scheduleForm .oneTimeScheduleFields { grid-column: span 2; }
+.dateTimeFields { display: flex; align-items: center; gap: 6px; }
+.dateTimeFields input { width: 54px; min-width: 0; text-align: center; }
+.dateTimeFields input:first-child { width: 76px; }
+.dateTimeFields input[type="time"] { width: 112px; margin-left: 5px; }
+.dateTimeFields > span { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .scheduleForm > span { height: 40px; display: flex; align-items: center; color: var(--muted); font-size: 11px; }
 .scheduleForm button { height: 40px; padding: 0 17px; border: 0; border-radius: 6px; background: var(--green); color: white; font-weight: 720; cursor: pointer; }
 .scheduleForm .secondaryButton { border: 1px solid var(--line); background: white; color: var(--muted); }
@@ -312,6 +318,7 @@ footer .brandMark { width: 27px; height: 27px; }
   footer { flex-direction: column; align-items: flex-start; }
   .quickMonitorForm { grid-template-columns: 1fr 1fr; }
   .scheduleForm { grid-template-columns: 1fr 1fr; }
+  .scheduleForm .oneTimeScheduleFields { grid-column: 1 / -1; }
   .quickMonitorForm button { grid-column: 1 / -1; }
   .editMonitorForm { grid-template-columns: 1fr 1fr; }
   .adminReportRow { grid-template-columns: 1fr auto auto; }
@@ -338,6 +345,7 @@ footer .brandMark { width: 27px; height: 27px; }
   .quickMonitorForm { grid-template-columns: 1fr; }
   .scheduleForm { grid-template-columns: 1fr; }
   .scheduleForm label { grid-column: auto; }
+  .dateTimeFields { flex-wrap: wrap; }
   .quickMonitorForm button { grid-column: auto; }
   .editMonitorForm { grid-template-columns: 1fr; }
   .adminReportRow { grid-template-columns: 1fr auto; gap: 10px; }

@@ -42,8 +42,46 @@ export default async function ReportPage({
       <section className="summaryGrid" aria-label={`${report.week} 요약`}>
         <article className="summaryCard primary">
           <span>모니터링 대상</span>
-          <strong>{report.target}</strong>
-          <small>{report.aliases}</small>
+          <strong>
+            {report.targets?.length
+              ? `${report.targets.length}개`
+              : report.target}
+          </strong>
+          {report.targets?.length ? (
+            <>
+              <div className="targetPreview" aria-label="대표 감시 대상">
+                {report.targets.slice(0, 3).map((target) => (
+                  <span key={target.ingredient}>{target.ingredient}</span>
+                ))}
+                {report.targets.length > 3 && (
+                  <span>+{report.targets.length - 3}개</span>
+                )}
+              </div>
+              <details className="targetDisclosure">
+                <summary>전체 대상 보기</summary>
+                <div className="targetSummaryList">
+                  {report.targets.map((target) => (
+                    <div className="targetSummaryRow" key={target.ingredient}>
+                      <div>
+                        <strong>{target.ingredient}</strong>
+                        <small>
+                          {[target.productName, target.aliases]
+                            .filter(Boolean)
+                            .join(" · ") || "등록된 검색어"}
+                        </small>
+                      </div>
+                      <span>
+                        문헌 {target.literatureCount} · ICSR {target.icsrCount} · 규제{" "}
+                        {target.regulationCount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </>
+          ) : (
+            <small>{report.aliases}</small>
+          )}
         </article>
         <article className="summaryCard">
           <span>신규 규제조치</span>
