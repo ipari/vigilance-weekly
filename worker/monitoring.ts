@@ -488,7 +488,8 @@ export async function runScheduledMonitoring(
          error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
          completed_at = ?
      WHERE status IN ('queued', 'running')
-       AND COALESCE(last_activity_at, started_at, created_at) < ?`,
+       AND unixepoch(COALESCE(last_activity_at, started_at, created_at))
+         < unixepoch(?)`,
   )
     .bind(new Date(scheduledTime).toISOString(), cutoff)
     .run();

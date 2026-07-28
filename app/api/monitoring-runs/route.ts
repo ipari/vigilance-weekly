@@ -84,11 +84,20 @@ export async function GET() {
     const timeoutCutoff = new Date(Date.now() - 90 * 60 * 1000).toISOString();
     await getDb().run(sql`
       UPDATE monitoring_runs
+      SET status = 'running', stage = '잘못된 시간 초과 판정 복구 · 수집 재개',
+          completed_at = NULL, error_message = NULL
+      WHERE status = 'failed'
+        AND error_message = '리포트 생성 제한 시간 90분을 초과했습니다.'
+        AND unixepoch(created_at) >= unixepoch(${timeoutCutoff})
+    `);
+    await getDb().run(sql`
+      UPDATE monitoring_runs
       SET status = 'failed', stage = '제한 시간 초과',
           error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
           completed_at = CURRENT_TIMESTAMP
       WHERE status IN ('queued', 'running')
-        AND COALESCE(last_activity_at, started_at, created_at) < ${timeoutCutoff}
+        AND unixepoch(COALESCE(last_activity_at, started_at, created_at))
+          < unixepoch(${timeoutCutoff})
     `);
     const rows = await getDb()
       .select()
