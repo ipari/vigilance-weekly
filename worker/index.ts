@@ -34,6 +34,13 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // Sites deployments do not currently deliver Cloudflare cron events.
+    // The management screen polls this route, so use that request as a
+    // production-safe heartbeat for due one-off and weekly runs.
+    if (url.pathname === "/api/schedules" && request.method === "GET") {
+      await runScheduledMonitoring(env, ctx, Date.now());
+    }
+
     if (
       url.pathname === "/api/monitoring-runs" &&
       request.method === "POST"

@@ -67,6 +67,13 @@ export default function MonitorManager() {
     ]);
   }, []);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadSchedules();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   async function loadRuns() {
     const response = await fetch("/api/monitoring-runs", { cache: "no-store" });
     const payload = await response.json();
@@ -291,7 +298,7 @@ export default function MonitorManager() {
           <div>
             <h2>예약 실행</h2>
             <p className="panelIntro">
-              매주 월요일 06:00 자동 실행 · 제한 시간 30분
+              매주 월요일 06:00 자동 실행 · 예약 화면을 열어 두면 정해진 시각에 실행 · 제한 시간 30분
             </p>
           </div>
         </div>
