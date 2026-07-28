@@ -48,7 +48,7 @@ export const scheduledRuns = sqliteTable("scheduled_runs", {
   runId: integer("run_id"),
   lastRunAt: text("last_run_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(""),
   canceledAt: text("canceled_at"),
   errorMessage: text("error_message"),
 });

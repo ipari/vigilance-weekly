@@ -4,7 +4,7 @@ ALTER TABLE `scheduled_runs` ADD `weekday` integer;--> statement-breakpoint
 ALTER TABLE `scheduled_runs` ADD `time_of_day` text DEFAULT '06:00' NOT NULL;--> statement-breakpoint
 ALTER TABLE `scheduled_runs` ADD `active` integer DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE `scheduled_runs` ADD `last_run_at` text;--> statement-breakpoint
-ALTER TABLE `scheduled_runs` ADD `updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL;--> statement-breakpoint
+ALTER TABLE `scheduled_runs` ADD `updated_at` text DEFAULT '' NOT NULL;--> statement-breakpoint
 INSERT INTO `scheduled_runs` (
   `execute_at`, `frequency`, `weekday`, `time_of_day`, `status`,
   `active`, `requested_by`

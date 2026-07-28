@@ -333,7 +333,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "''"
         },
         "canceled_at": {
           "name": "canceled_at",
