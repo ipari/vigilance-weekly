@@ -387,7 +387,7 @@ export default function MonitorManager() {
           <div>
             <h2>예약 실행</h2>
             <p className="panelIntro">
-              1회·매일·매주 일정을 여러 개 등록할 수 있습니다 · 예약 관리 화면이 열려 있는 동안 실행 시각을 확인합니다 · Asia/Seoul
+              1회·매일·매주 일정을 여러 개 등록할 수 있습니다 · 예약 관리 화면이 열려 있는 동안 실행 시각을 확인합니다 · 제한 시간 90분 · Asia/Seoul
             </p>
           </div>
         </div>

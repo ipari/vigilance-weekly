@@ -81,11 +81,11 @@ export async function GET() {
   }
 
   try {
-    const timeoutCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const timeoutCutoff = new Date(Date.now() - 90 * 60 * 1000).toISOString();
     await getDb().run(sql`
       UPDATE monitoring_runs
       SET status = 'failed', stage = '제한 시간 초과',
-          error_message = '리포트 생성 제한 시간 30분을 초과했습니다.',
+          error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
           completed_at = CURRENT_TIMESTAMP
       WHERE status IN ('queued', 'running')
         AND COALESCE(started_at, created_at) < ${timeoutCutoff}

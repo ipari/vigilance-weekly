@@ -36,7 +36,11 @@ type RegulatoryResult = {
 };
 
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
-const RUN_TIMEOUT_MS = 30 * 60 * 1000;
+const RUN_TIMEOUT_MS = 90 * 60 * 1000;
+const MIN_REQUEST_INTERVAL_MS = 1500;
+const MAX_REQUEST_JITTER_MS = 500;
+const MAX_RETRY_AFTER_MS = 60_000;
+const nextRequestAtByHost = new Map<string, number>();
 
 export async function startMonitoringRun(
   request: Request,
@@ -160,7 +164,7 @@ async function executeMonitoringRun(
     for (const monitor of monitors) {
       await assertRunActive(env, runId, deadline);
       await updateRun(env, runId, {
-        stage: `${monitor.ingredient} PubMed 문헌 검색`,
+        stage: `${monitor.ingredient} PubMed 문헌 검색 · 요청 간격 조절 중`,
         progress: percent(completedSteps, totalSteps),
         completedSteps,
       });
@@ -174,7 +178,7 @@ async function executeMonitoringRun(
       await delay(400);
       await assertRunActive(env, runId, deadline);
       await updateRun(env, runId, {
-        stage: `${monitor.ingredient} FDA 규제정보 검색`,
+        stage: `${monitor.ingredient} FDA 규제정보 검색 · 요청 간격 조절 중`,
         progress: percent(completedSteps, totalSteps),
         completedSteps,
       });
@@ -251,7 +255,7 @@ async function assertRunActive(
   deadline: number,
 ) {
   if (Date.now() >= deadline) {
-    throw new Error("리포트 생성 제한 시간 30분을 초과했습니다.");
+    throw new Error("리포트 생성 제한 시간 90분을 초과했습니다.");
   }
   const run = await env.DB.prepare(
     "SELECT status FROM monitoring_runs WHERE id = ?",
@@ -424,7 +428,7 @@ export async function runScheduledMonitoring(
   await env.DB.prepare(
     `UPDATE monitoring_runs
      SET status = 'failed', stage = '제한 시간 초과',
-         error_message = '리포트 생성 제한 시간 30분을 초과했습니다.',
+         error_message = '리포트 생성 제한 시간 90분을 초과했습니다.',
          completed_at = ?
      WHERE status IN ('queued', 'running')
        AND COALESCE(started_at, created_at) < ?`,
@@ -533,6 +537,7 @@ async function fetchWithRetry(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
+      await waitForRequestSlot(input.hostname);
       const response = await fetch(input, init);
       const retryable =
         response.status === 408 ||
@@ -541,20 +546,47 @@ async function fetchWithRetry(
         response.status >= 500;
       if (!retryable || attempt === maxAttempts) return response;
 
-      const retryAfter = Number(response.headers.get("retry-after"));
+      const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
       await delay(
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? Math.min(retryAfter * 1000, 8000)
-          : 750 * 2 ** (attempt - 1),
+        retryAfter !== null
+          ? Math.min(retryAfter, MAX_RETRY_AFTER_MS)
+          : retryDelay(attempt),
       );
     } catch (error) {
       lastError = error;
       if (attempt === maxAttempts) break;
-      await delay(750 * 2 ** (attempt - 1));
+      await delay(retryDelay(attempt));
     }
   }
 
   throw new Error(`${label} 네트워크 오류: ${errorMessage(lastError)}`);
+}
+
+async function waitForRequestSlot(hostname: string) {
+  const now = Date.now();
+  const slotAt = Math.max(now, nextRequestAtByHost.get(hostname) ?? 0);
+  const jitter = Math.floor(Math.random() * (MAX_REQUEST_JITTER_MS + 1));
+  nextRequestAtByHost.set(
+    hostname,
+    slotAt + MIN_REQUEST_INTERVAL_MS + jitter,
+  );
+  const waitMs = slotAt - now;
+  if (waitMs > 0) await delay(waitMs);
+}
+
+function retryDelay(attempt: number) {
+  const exponential = 2000 * 2 ** (attempt - 1);
+  const jitter = Math.floor(Math.random() * (MAX_REQUEST_JITTER_MS + 1));
+  return Math.min(exponential + jitter, MAX_RETRY_AFTER_MS);
+}
+
+function parseRetryAfter(value: string | null) {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const date = Date.parse(value);
+  if (!Number.isFinite(date)) return null;
+  return Math.max(0, date - Date.now());
 }
 
 function delay(milliseconds: number) {
