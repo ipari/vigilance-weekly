@@ -21,7 +21,16 @@
 
 # misc
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
 *.pem
+*.key
+*.p12
+*.pfx
 
 # debug
 npm-debug.log*
@@ -29,14 +38,33 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# local secrets and environment files
 .env*
+!.env.example
+.dev.vars*
 
 # vercel
 .vercel
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
+
+# local databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+
+# Codex/OpenAI local state and deployment artifacts
+/.agents/
+/.openai/*
+!/.openai/hosting.json
+
+# generated output and local Cloudflare state
 /dist/
 /.wrangler/
 /outputs/
