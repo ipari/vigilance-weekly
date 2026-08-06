@@ -1,0 +1,41 @@
+name: Scheduler heartbeat
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: vigilance-weekly-scheduler
+  cancel-in-progress: false
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Dispatch due schedules and advance active reports
+        env:
+          SITE_URL: https://vigilance-weekly.ipari.chatgpt.site
+          OIDC_AUDIENCE: vigilance-weekly-scheduler
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 8); do
+            token_response="$(curl --fail --silent --show-error \
+              -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+            oidc_token="$(jq -er '.value' <<<"${token_response}")"
+            curl --fail --silent --show-error --max-time 90 \
+              --retry 2 --retry-all-errors \
+              -X POST \
+              -H "Authorization: Bearer ${oidc_token}" \
+              "${SITE_URL}/api/scheduler/heartbeat"
+            if [[ "${attempt}" -lt 8 ]]; then
+              sleep 20
+            fi
+          done

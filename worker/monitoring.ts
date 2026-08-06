@@ -559,6 +559,14 @@ export async function runScheduledMonitoring(
 
 }
 
+export async function runMonitoringHeartbeat(
+  env: MonitoringEnv,
+  scheduledTime = Date.now(),
+) {
+  await runScheduledMonitoring(env, scheduledTime);
+  await resumeActiveMonitoringRun(env);
+}
+
 async function startSystemRun(
   env: MonitoringEnv,
   triggerType: "scheduled" | "scheduled_test",
