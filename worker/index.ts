@@ -3,9 +3,10 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import {
   resumeActiveMonitoringRun,
-  runScheduledMonitoring,
+  runMonitoringHeartbeat,
   startMonitoringRun,
 } from "./monitoring";
+import { verifyGithubActionsScheduler } from "./github-actions-oidc";
 
 interface Env {
   ASSETS: Fetcher;
@@ -38,11 +39,15 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // Sites deployments do not currently deliver Cloudflare cron events.
-    // The management screen polls this route, so use that request as a
-    // production-safe heartbeat for due one-off and weekly runs.
-    if (url.pathname === "/api/schedules" && request.method === "GET") {
-      await runScheduledMonitoring(env, Date.now());
+    if (url.pathname === "/api/scheduler/heartbeat") {
+      if (request.method !== "POST") {
+        return Response.json({ error: "허용되지 않은 요청입니다." }, { status: 405 });
+      }
+      if (!(await verifyGithubActionsScheduler(request))) {
+        return Response.json({ error: "유효하지 않은 스케줄러 요청입니다." }, { status: 401 });
+      }
+      await runMonitoringHeartbeat(env, Date.now());
+      return Response.json({ ok: true });
     }
 
     if (
@@ -77,7 +82,7 @@ const worker = {
     env: Env,
     ctx: ExecutionContext,
   ) {
-    ctx.waitUntil(runScheduledMonitoring(env, controller.scheduledTime));
+    ctx.waitUntil(runMonitoringHeartbeat(env, controller.scheduledTime));
   },
 };
 
