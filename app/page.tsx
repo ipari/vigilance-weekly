@@ -4,12 +4,6 @@ import { emptyReport, reports } from "./report-data";
 import { getStoredReports } from "../db/public-reports";
 import { getNextScheduledRun } from "../db/public-schedules";
 
-const regions = [
-  { name: "한국", source: "MFDS · KIDS", count: 0, status: "신규 조치 없음" },
-  { name: "미국", source: "FDA", count: 0, status: "신규 조치 없음" },
-  { name: "유럽", source: "EMA · PRAC", count: 0, status: "신규 조치 없음" },
-];
-
 export default async function Home() {
   const [user, storedReports, nextSchedule] = await Promise.all([
     getChatGPTUser(),
@@ -21,6 +15,7 @@ export default async function Home() {
   );
   const currentReport = latestStoredReport ?? emptyReport;
   const literature = currentReport.literature;
+  const regions = currentReport.regions ?? emptyReport.regions ?? [];
   const archiveReports = [...storedReports, ...reports].map((report) => ({
     ...report,
     current: report.slug === currentReport.slug,
@@ -150,7 +145,10 @@ export default async function Home() {
                 <small>{region.source}</small>
               </div>
               <strong>{region.count}</strong>
-              <p><span className="statusDot" />{region.status}</p>
+              <p>
+                <span className={`statusDot ${region.highCount ? "urgent" : region.count ? "review" : ""}`} />
+                {region.status}
+              </p>
             </article>
           ))}
         </div>

@@ -2,6 +2,13 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from ".";
 import { monitoringRuns } from "./schema";
 import type { Report } from "../app/report-data";
+import {
+  mergeRegulatoryResults,
+  type RegulatoryActionType,
+  type RegulatoryPriority,
+  type RegulatoryRegion,
+  type RegulatoryResult,
+} from "../lib/regulatory";
 
 type MonitorSnapshot = {
   ingredient: string;
@@ -26,11 +33,17 @@ type StoredLiterature = {
 
 type StoredRegulatory = {
   source: string;
+  authority?: RegulatoryResult["authority"];
+  region?: RegulatoryRegion;
   title: string;
   date: string;
   description: string;
   sourceUrl: string;
   monitor: string;
+  matchedTerms?: string[];
+  actionType?: RegulatoryActionType;
+  priority?: RegulatoryPriority;
+  assessment?: string;
 };
 
 export async function getStoredReports(): Promise<Report[]> {
@@ -72,7 +85,10 @@ function toPublicReport(
     .filter(Boolean);
   const baseWeek = formatWeekLabel(run.weekKey);
   const literature = safeJsonArray<StoredLiterature>(run.literatureResults);
-  const regulatory = safeJsonArray<StoredRegulatory>(run.regulatoryResults);
+  const storedRegulatory = safeJsonArray<StoredRegulatory>(run.regulatoryResults);
+  const regulatory = mergeRegulatoryResults(
+    storedRegulatory as RegulatoryResult[],
+  );
 
   return {
     slug: `run-${run.id}`,
@@ -87,6 +103,7 @@ function toPublicReport(
     regulationCount: regulatory.length,
     literatureCount: literature.length,
     icsrCount: literature.filter((item) => item.tag === "ICSR 검토").length,
+    regions: regionSummaries(regulatory),
     targets: snapshot.map((monitor) => {
       const matchesMonitor = (value: string) =>
         value.trim().toLocaleLowerCase() ===
@@ -100,7 +117,7 @@ function toPublicReport(
         aliases: monitor.aliases,
         literatureCount: monitorLiterature.length,
         regulationCount: regulatory.filter((item) =>
-          matchesMonitor(item.monitor),
+          regulatoryMatchesMonitor(item.monitor, monitor.ingredient),
         ).length,
         icsrCount: monitorLiterature.filter(
           (item) => item.tag === "ICSR 검토",
@@ -131,13 +148,48 @@ function toPublicReport(
     progress: run.progress,
     regulatory: regulatory.map((item) => ({
       source: item.source,
+      authority: item.authority,
+      region: item.region,
       title: item.title,
       date: item.date,
       description: item.description,
       sourceUrl: item.sourceUrl,
       monitor: item.monitor,
+      matchedTerms: item.matchedTerms,
+      actionType: item.actionType,
+      priority: item.priority,
+      assessment: item.assessment,
     })),
   };
+}
+
+function regionSummaries(regulatory: RegulatoryResult[]): NonNullable<Report["regions"]> {
+  const definitions = [
+    { code: "KR" as const, name: "한국", source: "MFDS · KIDS" },
+    { code: "US" as const, name: "미국", source: "FDA" },
+    { code: "EU" as const, name: "유럽", source: "EMA · PRAC" },
+  ];
+  return definitions.map((definition) => {
+    const items = regulatory.filter((item) => item.region === definition.code);
+    const highCount = items.filter((item) => item.priority === "높음").length;
+    return {
+      ...definition,
+      count: items.length,
+      highCount,
+      status: highCount
+        ? `${highCount}건 우선 검토`
+        : items.length
+          ? `${items.length}건 검토 필요`
+          : "신규 조치 없음",
+    };
+  });
+}
+
+function regulatoryMatchesMonitor(value: string, ingredient: string) {
+  const expected = ingredient.trim().toLocaleLowerCase();
+  return value
+    .split("·")
+    .some((item) => item.trim().toLocaleLowerCase() === expected);
 }
 
 function safeSnapshot(value: string): MonitorSnapshot[] {

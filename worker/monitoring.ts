@@ -1,5 +1,15 @@
 import { nextScheduleOccurrence } from "../lib/scheduling";
 import { shouldRestartLegacyRun } from "../lib/monitoring-state";
+import {
+  makeFdaResult,
+  matchedSearchTerms,
+  mergeRegulatoryResults,
+  monitorSearchTerms,
+  parseEmaFeed,
+  parseKidsSignals,
+  parseMfdsSafetyLetters,
+  type RegulatoryResult,
+} from "../lib/regulatory";
 
 interface MonitoringEnv {
   DB: D1Database;
@@ -25,15 +35,6 @@ type LiteratureResult = {
   monitor: string;
   priority: "낮음" | "중간";
   tag: string;
-};
-
-type RegulatoryResult = {
-  source: string;
-  title: string;
-  date: string;
-  description: string;
-  sourceUrl: string;
-  monitor: string;
 };
 
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
@@ -218,7 +219,7 @@ export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
     const monitor = monitors[Math.floor(step / 2)];
     if (!monitor) throw new Error("저장된 감시 대상 정보를 읽을 수 없습니다.");
     const isLiterature = step % 2 === 0;
-    const source = isLiterature ? "PubMed 문헌" : "FDA 규제정보";
+    const source = isLiterature ? "PubMed 문헌" : "한국·미국·유럽 규제정보";
     await env.DB.prepare(
       `UPDATE monitoring_runs
        SET stage = ?, last_activity_at = ?
@@ -244,14 +245,16 @@ export async function resumeActiveMonitoringRun(env: MonitoringEnv) {
           (item) => item.pmid,
         );
       } else {
-        regulatory = uniqueBy(
-          [...regulatory, ...(await fetchFdaRecalls(monitor, period))],
-          (item) => `${item.source}:${item.title}:${item.date}`,
-        );
+        const collected = await fetchRegulatoryInformation(monitor, period);
+        regulatory = mergeRegulatoryResults([...regulatory, ...collected.items]);
+        if (collected.warnings.length > 0) {
+          failedSteps += collected.warnings.length;
+          warning = [warning, ...collected.warnings].filter(Boolean).join(" | ");
+        }
       }
     } catch (error) {
       failedSteps += 1;
-      const itemWarning = `${monitor.ingredient} ${isLiterature ? "PubMed" : "FDA"}: ${errorMessage(error)}`;
+      const itemWarning = `${monitor.ingredient} ${isLiterature ? "PubMed" : "규제정보"}: ${errorMessage(error)}`;
       warning = [warning, itemWarning].filter(Boolean).join(" | ");
     }
 
@@ -451,7 +454,17 @@ async function fetchFdaRecalls(
   if (!monitor.regions.split(",").includes("US")) return [];
   const start = period.periodStart.replaceAll("-", "");
   const end = period.periodEnd.replaceAll("-", "");
-  const query = `openfda.generic_name:"${monitor.ingredient}" AND report_date:[${start} TO ${end}]`;
+  const terms = monitorSearchTerms(monitor);
+  const queryTerms = terms.flatMap((term) => {
+    const escaped = term.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+    return [
+      `openfda.generic_name:"${escaped}"`,
+      `openfda.brand_name:"${escaped}"`,
+      `openfda.substance_name:"${escaped}"`,
+      `product_description:"${escaped}"`,
+    ];
+  });
+  const query = `(${queryTerms.join(" OR ")}) AND report_date:[${start} TO ${end}]`;
   const url = new URL("https://api.fda.gov/drug/enforcement.json");
   url.search = new URLSearchParams({ search: query, limit: "20" }).toString();
   const response = await fetchWithRetry(
@@ -466,14 +479,106 @@ async function fetchFdaRecalls(
   const body = (await response.json()) as {
     results?: Array<Record<string, unknown>>;
   };
-  return (body.results ?? []).map((item) => ({
-    source: "FDA Recall Enforcement",
-    title: String(item.product_description ?? "의약품 회수 정보"),
-    date: String(item.report_date ?? ""),
-    description: String(item.reason_for_recall ?? ""),
-    sourceUrl: `https://api.fda.gov/drug/enforcement.json?search=${encodeURIComponent(`recall_number:"${String(item.recall_number ?? "")}"`)}`,
-    monitor: monitor.ingredient,
-  }));
+  return (body.results ?? []).map((item) => {
+    const openFda =
+      item.openfda && typeof item.openfda === "object"
+        ? (item.openfda as Record<string, unknown>)
+        : {};
+    const searchable = [
+      item.product_description,
+      openFda.generic_name,
+      openFda.brand_name,
+      openFda.substance_name,
+    ]
+      .flat()
+      .filter(Boolean)
+      .join(" ");
+    return makeFdaResult(
+      item,
+      monitor,
+      matchedSearchTerms(searchable, terms),
+    );
+  });
+}
+
+async function fetchRegulatoryInformation(
+  monitor: Monitor,
+  period: ReturnType<typeof currentSeoulWeek>,
+) {
+  const regions = new Set(monitor.regions.split(",").map((value) => value.trim()));
+  const collectors: Array<{
+    label: string;
+    collect: () => Promise<RegulatoryResult[]>;
+  }> = [];
+
+  if (regions.has("KR")) {
+    collectors.push(
+      { label: "MFDS", collect: () => fetchMfdsSafetyLetters(monitor, period) },
+      { label: "KIDS", collect: () => fetchKidsSignals(monitor, period) },
+    );
+  }
+  if (regions.has("US")) {
+    collectors.push({ label: "FDA", collect: () => fetchFdaRecalls(monitor, period) });
+  }
+  if (regions.has("EU")) {
+    collectors.push({ label: "EMA·PRAC", collect: () => fetchEmaRegulatory(monitor, period) });
+  }
+
+  const settled = await Promise.allSettled(collectors.map((source) => source.collect()));
+  const items: RegulatoryResult[] = [];
+  const warnings: string[] = [];
+  settled.forEach((result, index) => {
+    if (result.status === "fulfilled") items.push(...result.value);
+    else {
+      warnings.push(
+        `${monitor.ingredient} ${collectors[index].label}: ${errorMessage(result.reason)}`,
+      );
+    }
+  });
+  return { items: mergeRegulatoryResults(items), warnings };
+}
+
+async function fetchMfdsSafetyLetters(
+  monitor: Monitor,
+  period: ReturnType<typeof currentSeoulWeek>,
+) {
+  const url = new URL("https://nedrug.mfds.go.kr/pbp/CCBAC01/getList");
+  url.search = new URLSearchParams({ page: "1", limit: "100" }).toString();
+  const response = await fetchWithRetry(
+    url,
+    { headers: { accept: "text/html", "accept-language": "ko-KR,ko;q=0.9" } },
+    "식약처 안전성서한 검색",
+  );
+  if (!response.ok) throw new Error(`식약처 안전성서한 검색 실패 (${response.status})`);
+  return parseMfdsSafetyLetters(await response.text(), monitor, period);
+}
+
+async function fetchKidsSignals(
+  monitor: Monitor,
+  period: ReturnType<typeof currentSeoulWeek>,
+) {
+  const url = new URL("https://open.drugsafe.or.kr/alarm/arlm/List.jsp");
+  const response = await fetchWithRetry(
+    url,
+    { headers: { accept: "text/html", "accept-language": "ko-KR,ko;q=0.9" } },
+    "KIDS 실마리정보 검색",
+  );
+  if (!response.ok) throw new Error(`KIDS 실마리정보 검색 실패 (${response.status})`);
+  return parseKidsSignals(await response.text(), monitor, period);
+}
+
+async function fetchEmaRegulatory(
+  monitor: Monitor,
+  period: ReturnType<typeof currentSeoulWeek>,
+) {
+  const url = new URL("https://www.ema.europa.eu/en/whats-new.xml");
+  const response = await fetchWithRetry(
+    url,
+    { headers: { accept: "application/rss+xml, application/xml" } },
+    "EMA·PRAC 규제정보 검색",
+  );
+  if (!response.ok) throw new Error(`EMA·PRAC 규제정보 검색 실패 (${response.status})`);
+  return parseEmaFeed(await response.text(), monitor, period);
 }
 
 export async function runScheduledMonitoring(

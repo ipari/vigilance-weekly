@@ -102,6 +102,33 @@ export default async function ReportPage({
         </article>
       </section>
 
+      <section className="section reportRegions">
+        <div className="sectionHeading">
+          <div>
+            <p className="eyebrow">REGIONAL OVERVIEW</p>
+            <h2>지역별 규제정보</h2>
+          </div>
+          <span>기관 공개일 기준</span>
+        </div>
+        <div className="regionGrid">
+          {(report.regions ?? []).map((region) => (
+            <article className="regionCard" key={region.code}>
+              <div>
+                <span className="regionName">{region.name}</span>
+                <small>{region.source}</small>
+              </div>
+              <strong>{region.count}</strong>
+              <p>
+                <span
+                  className={`statusDot ${region.highCount ? "urgent" : region.count ? "review" : ""}`}
+                />
+                {region.status}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="section reportLiterature">
         <div className="sectionHeading">
           <div>
@@ -143,27 +170,48 @@ export default async function ReportPage({
         </div>
       </section>
 
-      {report.regulatory && report.regulatory.length > 0 && (
-        <section className="section reportRegulatory">
+      <section className="section reportRegulatory">
           <div className="sectionHeading">
             <div>
               <p className="eyebrow">REGULATORY INTELLIGENCE</p>
               <h2>규제정보 검색 결과</h2>
             </div>
-            <span>{report.regulatory.length}건</span>
+            <span>{report.regulatory?.length ?? 0}건</span>
           </div>
           <div className="regulatoryResultList">
-            {report.regulatory.map((item) => (
+            {(!report.regulatory || report.regulatory.length === 0) && (
+              <div className="emptyState reportEmpty">
+                {report.status === "queued" || report.status === "running"
+                  ? "한국·미국·유럽의 규제정보를 수집하고 있습니다."
+                  : "이 리포트 기간에는 감시 대상과 일치하는 신규 규제조치가 없습니다."}
+              </div>
+            )}
+            {report.regulatory?.map((item) => (
               <article
                 className="regulatoryResult"
-                key={`${item.source}-${item.title}`}
+                key={`${item.source}-${item.sourceUrl}-${item.monitor}`}
               >
                 <div>
                   <span>{item.source}</span>
                   <small>{item.date} · {item.monitor}</small>
                 </div>
+                <div className="regulatoryBadges" aria-label="규제조치 분류">
+                  <span>{item.region}</span>
+                  <span>{item.actionType}</span>
+                  <span className={`priority ${item.priority === "높음" ? "high" : item.priority === "중간" ? "medium" : "low"}`}>
+                    우선순위 {item.priority}
+                  </span>
+                </div>
                 <h3>{item.title}</h3>
                 <p>{item.description}</p>
+                <p className="regulatoryAssessment">
+                  <strong>평가</strong> {item.assessment}
+                </p>
+                {item.matchedTerms.length > 0 && (
+                  <small className="matchedTerms">
+                    일치 검색어: {item.matchedTerms.join(" · ")}
+                  </small>
+                )}
                 <a href={item.sourceUrl} target="_blank" rel="noreferrer">
                   공식 자료 보기 ↗
                 </a>
@@ -171,7 +219,6 @@ export default async function ReportPage({
             ))}
           </div>
         </section>
-      )}
     </main>
   );
 }
