@@ -1,6 +1,7 @@
 import { nextScheduleOccurrence } from "../lib/scheduling";
 import { shouldRestartLegacyRun } from "../lib/monitoring-state";
 import {
+  isFdaSearchTerm,
   makeFdaResult,
   matchedSearchTerms,
   mergeRegulatoryResults,
@@ -454,7 +455,8 @@ async function fetchFdaRecalls(
   if (!monitor.regions.split(",").includes("US")) return [];
   const start = period.periodStart.replaceAll("-", "");
   const end = period.periodEnd.replaceAll("-", "");
-  const terms = monitorSearchTerms(monitor);
+  const terms = monitorSearchTerms(monitor).filter(isFdaSearchTerm);
+  if (terms.length === 0) return [];
   const queryTerms = terms.flatMap((term) => {
     const escaped = term.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
     return [
@@ -560,7 +562,14 @@ async function fetchKidsSignals(
   const url = new URL("https://open.drugsafe.or.kr/alarm/arlm/List.jsp");
   const response = await fetchWithRetry(
     url,
-    { headers: { accept: "text/html", "accept-language": "ko-KR,ko;q=0.9" } },
+    {
+      headers: {
+        accept: "text/html",
+        "accept-language": "ko-KR,ko;q=0.9",
+        "user-agent":
+          "Mozilla/5.0 (compatible; VigilanceWeekly/1.0; +https://vigilance-weekly.ipari.chatgpt.site)",
+      },
+    },
     "KIDS 실마리정보 검색",
   );
   if (!response.ok) throw new Error(`KIDS 실마리정보 검색 실패 (${response.status})`);

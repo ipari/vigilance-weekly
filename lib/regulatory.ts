@@ -46,6 +46,10 @@ export function monitorSearchTerms(monitor: RegulatoryMonitor) {
   return [...new Map(terms.map((term) => [term.toLocaleLowerCase(), term])).values()];
 }
 
+export function isFdaSearchTerm(value: string) {
+  return /^[\x20-\x7E]+$/.test(value) && /[A-Za-z0-9]/.test(value);
+}
+
 export function matchedSearchTerms(text: string, terms: string[]) {
   const haystack = normalizeForMatch(text);
   return terms.filter((term) => haystack.includes(normalizeForMatch(term)));

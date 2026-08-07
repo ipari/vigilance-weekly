@@ -113,11 +113,16 @@ main { min-height: 100vh; }
 .sectionHeading .checked { color: var(--green); }
 .regionGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .regionCard { background: white; border: 1px solid var(--line); border-radius: 9px; padding: 25px; display: grid; grid-template-columns: 1fr auto; }
+.regionCardLink { transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.regionCardLink:hover { border-color: #9fc8b9; box-shadow: 0 10px 28px rgba(13, 107, 79, .1); transform: translateY(-2px); }
+.regionCardLink:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .regionCard div { display: flex; flex-direction: column; gap: 6px; }
 .regionName { font-weight: 720; font-size: 18px; }
 .regionCard small { color: var(--muted); }
 .regionCard strong { font: 500 38px Georgia, serif; color: var(--green); }
-.regionCard p { grid-column: 1 / -1; border-top: 1px solid var(--line); margin: 24px 0 0; padding-top: 18px; color: var(--muted); font-size: 12px; }
+.regionCard p { grid-column: 1 / -1; border-top: 1px solid var(--line); margin: 24px 0 0; padding-top: 18px; color: var(--muted); font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.regionCard p > span:first-child { display: inline-flex; align-items: center; }
+.regionCardAction { color: var(--green); font-weight: 720; white-space: nowrap; }
 .statusDot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #36a778; margin-right: 8px; }
 .statusDot.review { background: #d58a31; }
 .statusDot.urgent { background: #c94b42; box-shadow: 0 0 0 4px rgba(201, 75, 66, .1); }
@@ -175,6 +180,13 @@ main { min-height: 100vh; }
 .reportEmpty { background: white; padding: 48px 28px; }
 .reportRegulatory { padding-bottom: 90px; }
 .reportRegions { padding-top: 62px; }
+.regulatoryRegionGroups { display: grid; gap: 36px; }
+.regulatoryRegionGroup { scroll-margin-top: 92px; }
+.regulatoryRegionHeading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; padding: 0 2px 12px; border-bottom: 1px solid var(--line); }
+.regulatoryRegionHeading > div { display: grid; gap: 4px; }
+.regulatoryRegionHeading h3 { margin: 0; font: 500 22px Georgia, serif; }
+.regulatoryRegionHeading small { color: var(--muted); }
+.regulatoryRegionHeading > strong { color: var(--green); font: 500 24px Georgia, serif; }
 .regulatoryResultList { display: grid; gap: 12px; }
 .regulatoryResult { padding: 24px 26px; background: white; border: 1px solid var(--line); border-radius: 9px; }
 .regulatoryResult > div { display: flex; justify-content: space-between; gap: 18px; color: var(--green); font-size: 11px; font-weight: 750; }

@@ -139,17 +139,29 @@ export default async function Home() {
         </div>
         <div className="regionGrid">
           {regions.map((region) => (
-            <article className="regionCard" key={region.name}>
+            <Link
+              className="regionCard regionCardLink"
+              href={
+                currentReport.slug === "empty"
+                  ? "#archive"
+                  : `/reports/${currentReport.slug}#regulatory-${region.code}`
+              }
+              key={region.name}
+              aria-label={`${region.name} 규제정보 상세 보기`}
+            >
               <div>
                 <span className="regionName">{region.name}</span>
                 <small>{region.source}</small>
               </div>
               <strong>{region.count}</strong>
               <p>
-                <span className={`statusDot ${region.highCount ? "urgent" : region.count ? "review" : ""}`} />
-                {region.status}
+                <span>
+                  <span className={`statusDot ${region.highCount ? "urgent" : region.count ? "review" : ""}`} />
+                  {region.status}
+                </span>
+                <span className="regionCardAction">상세 보기 →</span>
               </p>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

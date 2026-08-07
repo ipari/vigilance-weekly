@@ -17,6 +17,8 @@ test("home renders region cards from the latest completed report", async () => {
   assert.match(page, /currentReport\.regions/);
   assert.match(page, /regions\.map\(\(region\)/);
   assert.match(page, /region\.highCount/);
+  assert.match(page, /#regulatory-\$\{region\.code\}/);
+  assert.match(page, /regionCardLink/);
   assert.doesNotMatch(page, /const regions\s*=\s*\[/);
 
   assert.match(publicReports, /regionSummaries\(regulatory\)/);
@@ -35,7 +37,20 @@ test("report exposes regulatory classification, priority and assessment", async 
   assert.match(page, /item\.assessment/);
   assert.match(page, /item\.matchedTerms\.join/);
   assert.match(page, /공식 자료 보기/);
+  assert.match(page, /href=\{`#regulatory-\$\{region\.code\}`\}/);
+  assert.match(page, /id=\{`regulatory-\$\{region\.code\}`\}/);
+  assert.match(page, /regulatory\.filter/);
+  assert.match(css, /\.regionCardLink:hover/);
+  assert.match(css, /\.regulatoryRegionGroup/);
   assert.match(css, /\.regulatoryBadges/);
   assert.match(css, /\.priority\.high/);
   assert.match(css, /\.statusDot\.urgent/);
+});
+
+test("external regulatory requests apply source-compatible request rules", async () => {
+  const worker = await source("worker/monitoring.ts");
+
+  assert.match(worker, /monitorSearchTerms\(monitor\)\.filter\(isFdaSearchTerm\)/);
+  assert.match(worker, /VigilanceWeekly\/1\.0/);
+  assert.match(worker, /"user-agent"/);
 });

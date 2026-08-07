@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyRegulatoryAction,
+  isFdaSearchTerm,
   mergeRegulatoryResults,
   monitorSearchTerms,
   parseEmaFeed,
@@ -23,6 +24,12 @@ test("성분명, 제품명과 별칭을 중복 없이 검색어로 만든다", (
     "Opdivo",
     "니볼루맙",
   ]);
+});
+
+test("FDA에는 지원되는 영문·숫자 검색어만 전달한다", () => {
+  assert.equal(isFdaSearchTerm("apixaban"), true);
+  assert.equal(isFdaSearchTerm("Eliquis 5 mg"), true);
+  assert.equal(isFdaSearchTerm("엘리퀴스정"), false);
 });
 
 test("식약처 안전성서한을 날짜와 전체 검색어로 선별한다", () => {
