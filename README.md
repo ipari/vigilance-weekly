@@ -1,6 +1,6 @@
-# Pharmacovigilance Monitor
+# Vigilance Weekly
 
-Pharmacovigilance Monitor는 의약품 관련 문헌과 규제정보를 지속적으로
+Vigilance Weekly는 의약품 관련 문헌과 규제정보를 지속적으로
 추적하는 팀 공용 모니터링 서비스입니다. PubMed 문헌과 식약처·KIDS,
 FDA, EMA·PRAC의 공개 규제정보를 수집해 매주 한국 시간 기준으로 리포트를
 생성하며, 필요할 때 즉시 실행하거나 원하는 날짜와 시각에 일회성 실행을
