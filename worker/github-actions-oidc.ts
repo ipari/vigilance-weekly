@@ -1,10 +1,10 @@
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_JWKS_URL = `${GITHUB_OIDC_ISSUER}/.well-known/jwks`;
 const EXPECTED_AUDIENCE = "vigilance-weekly-scheduler";
-const EXPECTED_REPOSITORY = "ipari/pv-monitor";
+const EXPECTED_REPOSITORY_ID = "1314646617";
 const EXPECTED_REF = "refs/heads/main";
-const EXPECTED_WORKFLOW_REF =
-  `${EXPECTED_REPOSITORY}/.github/workflows/scheduler-heartbeat.yml@${EXPECTED_REF}`;
+const EXPECTED_WORKFLOW_REF_SUFFIX =
+  `/.github/workflows/scheduler-heartbeat.yml@${EXPECTED_REF}`;
 const ALLOWED_EVENTS = new Set(["schedule", "workflow_dispatch"]);
 const CLOCK_TOLERANCE_SECONDS = 60;
 const JWKS_CACHE_MS = 6 * 60 * 60 * 1000;
@@ -24,6 +24,7 @@ type GithubOidcClaims = {
   nbf?: unknown;
   ref?: unknown;
   repository?: unknown;
+  repository_id?: unknown;
   workflow_ref?: unknown;
 };
 
@@ -74,9 +75,11 @@ function validClaims(claims: GithubOidcClaims, now: number) {
   if (
     claims.iss !== GITHUB_OIDC_ISSUER ||
     claims.aud !== EXPECTED_AUDIENCE ||
-    claims.repository !== EXPECTED_REPOSITORY ||
+    claims.repository_id !== EXPECTED_REPOSITORY_ID ||
     claims.ref !== EXPECTED_REF ||
-    claims.workflow_ref !== EXPECTED_WORKFLOW_REF ||
+    typeof claims.repository !== "string" ||
+    typeof claims.workflow_ref !== "string" ||
+    !claims.workflow_ref.endsWith(EXPECTED_WORKFLOW_REF_SUFFIX) ||
     typeof claims.event_name !== "string" ||
     !ALLOWED_EVENTS.has(claims.event_name) ||
     typeof claims.exp !== "number" ||
