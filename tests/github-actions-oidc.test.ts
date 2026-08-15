@@ -25,10 +25,11 @@ test("accepts only the scheduler workflow OIDC token", async () => {
     const claims = {
       iss: "https://token.actions.githubusercontent.com",
       aud: "vigilance-weekly-scheduler",
-      repository: "ipari/pv-monitor",
+      repository: "ipari/vigilance-weekly",
+      repository_id: "1314646617",
       ref: "refs/heads/main",
       workflow_ref:
-        "ipari/pv-monitor/.github/workflows/scheduler-heartbeat.yml@refs/heads/main",
+        "ipari/vigilance-weekly/.github/workflows/scheduler-heartbeat.yml@refs/heads/main",
       event_name: "schedule",
       iat: now,
       nbf: now,
@@ -48,7 +49,7 @@ test("accepts only the scheduler workflow OIDC token", async () => {
     const wrongWorkflowToken = await signToken(keys.privateKey, {
       ...claims,
       workflow_ref:
-        "ipari/pv-monitor/.github/workflows/other.yml@refs/heads/main",
+        "ipari/vigilance-weekly/.github/workflows/other.yml@refs/heads/main",
     });
     assert.equal(
       await verifyGithubActionsScheduler(
@@ -57,6 +58,49 @@ test("accepts only the scheduler workflow OIDC token", async () => {
         }),
       ),
       false,
+    );
+
+    const wrongRepositoryToken = await signToken(keys.privateKey, {
+      ...claims,
+      repository_id: "9999999999",
+    });
+    assert.equal(
+      await verifyGithubActionsScheduler(
+        new Request("https://example.test/api/scheduler/heartbeat", {
+          headers: { authorization: `Bearer ${wrongRepositoryToken}` },
+        }),
+      ),
+      false,
+    );
+
+    const wrongBranchToken = await signToken(keys.privateKey, {
+      ...claims,
+      ref: "refs/heads/feature",
+      workflow_ref:
+        "ipari/vigilance-weekly/.github/workflows/scheduler-heartbeat.yml@refs/heads/feature",
+    });
+    assert.equal(
+      await verifyGithubActionsScheduler(
+        new Request("https://example.test/api/scheduler/heartbeat", {
+          headers: { authorization: `Bearer ${wrongBranchToken}` },
+        }),
+      ),
+      false,
+    );
+
+    const renamedRepositoryToken = await signToken(keys.privateKey, {
+      ...claims,
+      repository: "ipari/future-repository-name",
+      workflow_ref:
+        "ipari/future-repository-name/.github/workflows/scheduler-heartbeat.yml@refs/heads/main",
+    });
+    assert.equal(
+      await verifyGithubActionsScheduler(
+        new Request("https://example.test/api/scheduler/heartbeat", {
+          headers: { authorization: `Bearer ${renamedRepositoryToken}` },
+        }),
+      ),
+      true,
     );
   } finally {
     globalThis.fetch = originalFetch;
