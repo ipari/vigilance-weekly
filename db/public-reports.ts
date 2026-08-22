@@ -57,8 +57,9 @@ export async function getStoredReports(): Promise<Report[]> {
       .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
       .limit(30);
 
-    return rows.map(toPublicReport);
-  } catch {
+    return rows.map((row) => toPublicReport(row));
+  } catch (error) {
+    console.error("공개 리포트 목록을 불러오지 못했습니다.", error);
     return [];
   }
 }

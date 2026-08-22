@@ -22,6 +22,8 @@ test("home renders region cards from the latest completed report", async () => {
   assert.doesNotMatch(page, /const regions\s*=\s*\[/);
 
   assert.match(publicReports, /regionSummaries\(regulatory\)/);
+  assert.match(publicReports, /rows\.map\(\(row\) => toPublicReport\(row\)\)/);
+  assert.doesNotMatch(publicReports, /rows\.map\(toPublicReport\)/);
   assert.match(publicReports, /MFDS · KIDS/);
   assert.match(publicReports, /EMA · PRAC/);
 });
