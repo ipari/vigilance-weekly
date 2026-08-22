@@ -2,6 +2,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import { getDb } from ".";
 import { monitoringRuns } from "./schema";
 import type { Report } from "../app/report-data";
+import { decodeHtmlEntities } from "../lib/text.ts";
 import {
   mergeRegulatoryResults,
   compareRegulatoryItem,
@@ -102,7 +103,9 @@ function toPublicReport(
     .flatMap((monitor) => [monitor.productName, monitor.aliases])
     .filter(Boolean);
   const baseWeek = formatWeekLabel(run.weekKey);
-  const literature = safeJsonArray<StoredLiterature>(run.literatureResults);
+  const literature = safeJsonArray<StoredLiterature>(run.literatureResults).map(
+    normalizeStoredLiterature,
+  );
   const storedRegulatory = safeJsonArray<StoredRegulatory>(run.regulatoryResults);
   const regulatory = mergeRegulatoryResults(
     storedRegulatory as RegulatoryResult[],
@@ -191,6 +194,18 @@ function toPublicReport(
         ? compareRegulatoryItem(item, previousRegulatory)
         : undefined,
     })),
+  };
+}
+
+function normalizeStoredLiterature(item: StoredLiterature): StoredLiterature {
+  return {
+    ...item,
+    title: decodeHtmlEntities(item.title),
+    authors: decodeHtmlEntities(item.authors),
+    journal: decodeHtmlEntities(item.journal),
+    published: decodeHtmlEntities(item.published),
+    doi: decodeHtmlEntities(item.doi),
+    abstract: decodeHtmlEntities(item.abstract),
   };
 }
 

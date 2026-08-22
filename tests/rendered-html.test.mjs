@@ -61,3 +61,10 @@ test("external regulatory requests apply source-compatible request rules", async
   assert.match(worker, /VigilanceWeekly\/1\.0/);
   assert.match(worker, /"user-agent"/);
 });
+
+test("stored PubMed text is decoded before public rendering", async () => {
+  const publicReports = await source("db/public-reports.ts");
+
+  assert.match(publicReports, /decodeHtmlEntities\(item\.authors\)/);
+  assert.match(publicReports, /decodeHtmlEntities\(item\.abstract\)/);
+});

@@ -1,5 +1,6 @@
 import { nextScheduleOccurrence } from "../lib/scheduling";
 import { shouldRestartLegacyRun } from "../lib/monitoring-state";
+import { decodeHtmlEntities } from "../lib/text.ts";
 import {
   isFdaSearchTerm,
   makeFdaResult,
@@ -835,13 +836,7 @@ function xmlText(value: string, expression: RegExp) {
 }
 
 function stripXml(value: string) {
-  return value
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+  return decodeHtmlEntities(value.replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
 }

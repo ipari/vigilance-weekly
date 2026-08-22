@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from "./text.ts";
+
 export type RegulatoryRegion = "KR" | "US" | "EU";
 export type RegulatoryPriority = "높음" | "중간" | "낮음";
 export type RegulatoryActionType =
@@ -138,7 +140,7 @@ export function parseMfdsSafetyLetters(
         title,
         date,
         description: description || "식품의약품안전처가 공개한 의약품 안전성 조치입니다.",
-        sourceUrl: absoluteUrl(decodeEntities(link[1]), "https://nedrug.mfds.go.kr"),
+        sourceUrl: absoluteUrl(decodeHtmlEntities(link[1]), "https://nedrug.mfds.go.kr"),
         monitor: monitor.ingredient,
         matchedTerms,
       }),
@@ -401,20 +403,9 @@ function xmlValue(xml: string, tag: string) {
 }
 
 function cleanText(value: string) {
-  return decodeEntities(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " "))
+  return decodeHtmlEntities(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function decodeEntities(value: string) {
-  return value
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)));
 }
 
 function normalizeForMatch(value: string) {
