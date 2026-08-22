@@ -1,9 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { getDb } from ".";
 import { monitoringRuns } from "./schema";
 import type { Report } from "../app/report-data";
 import {
   mergeRegulatoryResults,
+  compareRegulatoryItem,
   type RegulatoryActionType,
   type RegulatoryPriority,
   type RegulatoryRegion,
@@ -44,6 +45,8 @@ type StoredRegulatory = {
   actionType?: RegulatoryActionType;
   priority?: RegulatoryPriority;
   assessment?: string;
+  officialDocumentName?: string;
+  revision?: number;
 };
 
 export async function getStoredReports(): Promise<Report[]> {
@@ -64,12 +67,25 @@ export async function getStoredReport(id: number): Promise<Report | null> {
   if (!Number.isInteger(id) || id < 1) return null;
 
   try {
-    const [run] = await getDb()
+    const database = getDb();
+    const [run] = await database
       .select()
       .from(monitoringRuns)
       .where(eq(monitoringRuns.id, id))
       .limit(1);
-    return run ? toPublicReport(run) : null;
+    if (!run) return null;
+    const [previousRun] = await database
+      .select()
+      .from(monitoringRuns)
+      .where(
+        and(
+          lt(monitoringRuns.id, run.id),
+          eq(monitoringRuns.status, "completed"),
+        ),
+      )
+      .orderBy(desc(monitoringRuns.createdAt), desc(monitoringRuns.id))
+      .limit(1);
+    return toPublicReport(run, previousRun);
   } catch {
     return null;
   }
@@ -77,6 +93,7 @@ export async function getStoredReport(id: number): Promise<Report | null> {
 
 function toPublicReport(
   run: typeof monitoringRuns.$inferSelect,
+  previousRun?: typeof monitoringRuns.$inferSelect,
 ): Report {
   const snapshot = safeSnapshot(run.monitorSnapshot);
   const targets = snapshot.map((monitor) => monitor.ingredient).filter(Boolean);
@@ -89,6 +106,11 @@ function toPublicReport(
   const regulatory = mergeRegulatoryResults(
     storedRegulatory as RegulatoryResult[],
   );
+  const previousRegulatory = previousRun
+    ? mergeRegulatoryResults(
+        safeJsonArray<StoredRegulatory>(previousRun.regulatoryResults) as RegulatoryResult[],
+      )
+    : [];
 
   return {
     slug: `run-${run.id}`,
@@ -104,6 +126,9 @@ function toPublicReport(
     literatureCount: literature.length,
     icsrCount: literature.filter((item) => item.tag === "ICSR 검토").length,
     regions: regionSummaries(regulatory),
+    regulatoryComparison: previousRun
+      ? regulatoryComparison(regulatory, previousRun, previousRegulatory)
+      : undefined,
     targets: snapshot.map((monitor) => {
       const matchesMonitor = (value: string) =>
         value.trim().toLocaleLowerCase() ===
@@ -159,8 +184,50 @@ function toPublicReport(
       actionType: item.actionType,
       priority: item.priority,
       assessment: item.assessment,
+      officialDocumentName: item.officialDocumentName,
+      revision: item.revision,
+      change: previousRun
+        ? compareRegulatoryItem(item, previousRegulatory)
+        : undefined,
     })),
   };
+}
+
+function regulatoryComparison(
+  current: RegulatoryResult[],
+  previousRun: typeof monitoringRuns.$inferSelect,
+  previous: RegulatoryResult[],
+): NonNullable<Report["regulatoryComparison"]> {
+  const regions = [
+    { code: "KR" as const, name: "한국" },
+    { code: "US" as const, name: "미국" },
+    { code: "EU" as const, name: "유럽" },
+  ].map((region) => {
+    const currentCount = current.filter((item) => item.region === region.code).length;
+    const previousCount = previous.filter((item) => item.region === region.code).length;
+    return {
+      ...region,
+      currentCount,
+      previousCount,
+      difference: currentCount - previousCount,
+    };
+  });
+
+  return {
+    baseline: reportName(previousRun),
+    previousCount: previous.length,
+    currentCount: current.length,
+    difference: current.length - previous.length,
+    regions,
+  };
+}
+
+function reportName(run: typeof monitoringRuns.$inferSelect) {
+  const baseWeek = formatWeekLabel(run.weekKey);
+  return (
+    run.customName?.trim() ||
+    `${baseWeek}${run.reportSequence > 1 ? ` (${run.reportSequence})` : ""}`
+  );
 }
 
 function regionSummaries(regulatory: RegulatoryResult[]): NonNullable<Report["regions"]> {

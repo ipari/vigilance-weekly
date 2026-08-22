@@ -37,12 +37,17 @@ test("report exposes regulatory classification, priority and assessment", async 
   assert.match(page, /item\.assessment/);
   assert.match(page, /item\.matchedTerms\.join/);
   assert.match(page, /공식 자료 보기/);
+  assert.match(page, /regulatoryComparison/);
+  assert.match(page, /item\.officialDocumentName/);
+  assert.match(page, /item\.change\.summary/);
   assert.match(page, /href=\{`#regulatory-\$\{region\.code\}`\}/);
   assert.match(page, /id=\{`regulatory-\$\{region\.code\}`\}/);
   assert.match(page, /regulatory\.filter/);
   assert.match(css, /\.regionCardLink:hover/);
   assert.match(css, /\.regulatoryRegionGroup/);
   assert.match(css, /\.regulatoryBadges/);
+  assert.match(css, /\.regulatoryComparison/);
+  assert.match(css, /\.regulatorySourceMatch/);
   assert.match(css, /\.priority\.high/);
   assert.match(css, /\.statusDot\.urgent/);
 });

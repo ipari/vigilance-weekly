@@ -24,6 +24,13 @@ export type RegulatoryResult = {
   actionType: RegulatoryActionType;
   priority: RegulatoryPriority;
   assessment: string;
+  officialDocumentName?: string;
+  revision?: number;
+};
+
+export type RegulatoryItemChange = {
+  status: "new" | "updated" | "unchanged";
+  summary: string;
 };
 
 export type RegulatoryMonitor = {
@@ -205,6 +212,8 @@ export function parseEmaFeed(
         sourceUrl,
         monitor: monitor.ingredient,
         matchedTerms,
+        officialDocumentName: emaDocumentName(title),
+        revision: emaRevision(text),
       }),
     ];
   });
@@ -259,6 +268,9 @@ export function mergeRegulatoryResults(items: RegulatoryResult[]) {
       actionType: stored.actionType || inferred.actionType,
       priority: stored.priority || inferred.priority,
       assessment: stored.assessment || inferred.assessment,
+      officialDocumentName:
+        stored.officialDocumentName || emaDocumentName(stored.title ?? ""),
+      revision: stored.revision || emaRevision(`${stored.title ?? ""} ${stored.description ?? ""}`),
     };
     const key = `${item.region}:${item.sourceUrl || item.title}:${item.date}`;
     const current = merged.get(key);
@@ -279,6 +291,49 @@ export function mergeRegulatoryResults(items: RegulatoryResult[]) {
   return [...merged.values()];
 }
 
+export function compareRegulatoryItem(
+  current: RegulatoryResult,
+  previousItems: RegulatoryResult[],
+): RegulatoryItemChange {
+  const previous = previousItems.find(
+    (item) => regulatoryIdentity(item) === regulatoryIdentity(current),
+  );
+  if (!previous) {
+    return {
+      status: "new",
+      summary: "직전 완료 리포트에는 없던 새 항목입니다.",
+    };
+  }
+
+  const currentRevision = current.revision || emaRevision(`${current.title} ${current.description}`);
+  const previousRevision = previous.revision || emaRevision(`${previous.title} ${previous.description}`);
+  if (
+    currentRevision &&
+    previousRevision &&
+    currentRevision !== previousRevision
+  ) {
+    return {
+      status: "updated",
+      summary: `공식 문서 개정 ${previousRevision}판에서 ${currentRevision}판으로 갱신되었습니다.`,
+    };
+  }
+
+  if (
+    normalizeForMatch(current.title) !== normalizeForMatch(previous.title) ||
+    normalizeForMatch(current.description) !== normalizeForMatch(previous.description)
+  ) {
+    return {
+      status: "updated",
+      summary: "직전 완료 리포트 이후 제목 또는 공개 설명이 갱신되었습니다.",
+    };
+  }
+
+  return {
+    status: "unchanged",
+    summary: "직전 완료 리포트와 같은 내용이 다시 확인되었습니다.",
+  };
+}
+
 function makeResult(
   base: Omit<RegulatoryResult, "actionType" | "priority" | "assessment">,
   classification = "",
@@ -290,6 +345,29 @@ function makeResult(
       classification,
     ),
   };
+}
+
+function emaDocumentName(value: string) {
+  return cleanText(value.match(/\bEPAR\)?\s*:\s*([^,]+)/i)?.[1] ?? "") || undefined;
+}
+
+function emaRevision(value: string) {
+  const revision = Number(value.match(/\bRevision\s*:\s*(\d+)/i)?.[1] ?? 0);
+  return revision > 0 ? revision : undefined;
+}
+
+function regulatoryIdentity(item: RegulatoryResult) {
+  const sourceUrl = item.sourceUrl.trim();
+  if (sourceUrl) {
+    try {
+      const url = new URL(sourceUrl);
+      url.hash = "";
+      return `${item.region}:${url.toString().replace(/\/$/, "").toLocaleLowerCase()}`;
+    } catch {
+      return `${item.region}:${sourceUrl.toLocaleLowerCase()}`;
+    }
+  }
+  return `${item.region}:${normalizeForMatch(item.title)}`;
 }
 
 function isEmaRegulatoryContent(value: string) {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyRegulatoryAction,
+  compareRegulatoryItem,
   isFdaSearchTerm,
   mergeRegulatoryResults,
   monitorSearchTerms,
@@ -60,7 +61,7 @@ test("KIDS 실마리정보 목록을 감시 대상과 연결한다", () => {
 
 test("EMA RSS에서 관련 규제 변경만 선별한다", () => {
   const xml = `<rss><channel><item>
-    <title>Human medicines EPAR: Opdivo, nivolumab, Revision: 42</title>
+    <title>Human medicines European public assessment report (EPAR): Opdivo, nivolumab, Revision: 42</title>
     <link>https://www.ema.europa.eu/en/medicines/human/EPAR/opdivo</link>
     <description>Product information updated for Opdivo</description>
     <pubDate>Thu, 05 Feb 2026 12:00:00 +0100</pubDate>
@@ -72,6 +73,27 @@ test("EMA RSS에서 관련 규제 변경만 선별한다", () => {
   assert.equal(items.length, 1);
   assert.equal(items[0].region, "EU");
   assert.equal(items[0].actionType, "허가정보 변경");
+  assert.equal(items[0].officialDocumentName, "Opdivo");
+  assert.equal(items[0].revision, 42);
+});
+
+test("EMA 공식 제품명과 개정 번호를 기준으로 직전 결과와 비교한다", () => {
+  const previous = parseEmaFeed(
+    `<rss><channel><item><title>Human medicines European public assessment report (EPAR): Mounjaro, tirzepatide, Revision: 19</title><link>https://www.ema.europa.eu/en/medicines/human/EPAR/mounjaro</link><description>EPAR: Mounjaro</description><pubDate>Thu, 05 Feb 2026 12:00:00 +0100</pubDate></item></channel></rss>`,
+    { ingredient: "tirzepatide", productName: "Mounjaro", aliases: "" },
+    period,
+  );
+  const current = {
+    ...previous[0],
+    title: previous[0].title.replace("Revision: 19", "Revision: 20"),
+    revision: 20,
+  };
+
+  assert.deepEqual(compareRegulatoryItem(current, previous), {
+    status: "updated",
+    summary: "공식 문서 개정 19판에서 20판으로 갱신되었습니다.",
+  });
+  assert.equal(compareRegulatoryItem(current, []).status, "new");
 });
 
 test("조치 문구와 FDA 등급으로 유형과 우선순위를 평가한다", () => {

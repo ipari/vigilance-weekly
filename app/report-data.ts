@@ -28,6 +28,19 @@ export type Report = {
     highCount: number;
     status: string;
   }[];
+  regulatoryComparison?: {
+    baseline: string;
+    previousCount: number;
+    currentCount: number;
+    difference: number;
+    regions: {
+      code: "KR" | "US" | "EU";
+      name: string;
+      previousCount: number;
+      currentCount: number;
+      difference: number;
+    }[];
+  };
   regulatory?: {
     source: string;
     authority: "MFDS" | "KIDS" | "FDA" | "EMA" | "PRAC";
@@ -50,6 +63,12 @@ export type Report = {
       | "기타";
     priority: "높음" | "중간" | "낮음";
     assessment: string;
+    officialDocumentName?: string;
+    revision?: number;
+    change?: {
+      status: "new" | "updated" | "unchanged";
+      summary: string;
+    };
   }[];
   literature: {
     pmid?: string;

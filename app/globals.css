@@ -180,6 +180,19 @@ main { min-height: 100vh; }
 .reportEmpty { background: white; padding: 48px 28px; }
 .reportRegulatory { padding-bottom: 90px; }
 .reportRegions { padding-top: 62px; }
+.regulatoryComparison { display: grid; grid-template-columns: minmax(210px, .85fr) 2fr; gap: 0; margin: 0 0 32px; overflow: hidden; border: 1px solid #c8ddd4; border-radius: 10px; background: white; }
+.comparisonLead { display: grid; gap: 7px; padding: 23px 25px; background: var(--green-dark); color: white; }
+.comparisonLead > span { color: #a8d4c4; font-size: 11px; font-weight: 750; }
+.comparisonLead strong { font: 500 25px Georgia, serif; }
+.comparisonLead small { color: #c5dfd5; font-size: 11px; }
+.comparisonRegions { display: grid; grid-template-columns: repeat(3, 1fr); }
+.comparisonRegions > div { display: grid; align-content: center; gap: 7px; min-height: 112px; padding: 20px; border-right: 1px solid var(--line); }
+.comparisonRegions > div:last-child { border-right: 0; }
+.comparisonRegions span { color: var(--muted); font-size: 11px; }
+.comparisonRegions strong { font-size: 15px; }
+.comparisonRegions small { width: fit-content; color: var(--muted); font-size: 11px; font-weight: 750; }
+.comparisonRegions small.increase { color: #a4473d; }
+.comparisonRegions small.decrease { color: var(--green); }
 .regulatoryRegionGroups { display: grid; gap: 36px; }
 .regulatoryRegionGroup { scroll-margin-top: 92px; }
 .regulatoryRegionHeading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; padding: 0 2px 12px; border-bottom: 1px solid var(--line); }
@@ -200,7 +213,16 @@ main { min-height: 100vh; }
 .regulatoryResult p { margin: 0 0 15px; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .regulatoryResult .regulatoryAssessment { padding: 13px 15px; border-radius: 6px; background: #f1f6f3; color: #4f5e58; }
 .regulatoryAssessment strong { color: var(--green-dark); margin-right: 5px; }
-.regulatoryResult .matchedTerms { display: block; margin: -2px 0 14px; }
+.regulatoryResult .regulatoryChange { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; padding: 10px 12px; border-radius: 6px; background: #f7f1e9; color: #6e573d; }
+.regulatoryChange strong { flex: 0 0 auto; padding: 4px 7px; border-radius: 4px; background: #ead9c4; color: #8c571e; font-size: 10px; }
+.regulatoryChange.updated { background: #eef3fa; color: #52647e; }
+.regulatoryChange.updated strong { background: #dce7f5; color: #395b86; }
+.regulatoryChange.unchanged { background: #eef2f0; color: #5f6965; }
+.regulatoryChange.unchanged strong { background: #dfe6e2; color: #58625e; }
+.regulatorySourceMatch { display: grid !important; justify-content: initial !important; gap: 4px !important; margin: -2px 0 14px; padding: 12px 14px; border-left: 3px solid #9fc8b9; background: #f7faf8; color: var(--muted) !important; font-size: 11px !important; font-weight: 500 !important; }
+.regulatorySourceMatch span { color: var(--ink); }
+.regulatorySourceMatch strong { color: var(--green-dark); margin-right: 5px; }
+.regulatoryResult .matchedTerms { display: block; }
 .regulatoryResult a { color: var(--green); font-size: 12px; font-weight: 720; }
 
 .cta { padding: 61px max(7.5vw, 28px); background: var(--green-dark); color: white; display: flex; justify-content: space-between; align-items: center; gap: 35px; }
@@ -332,6 +354,7 @@ footer .brandMark { width: 27px; height: 27px; }
   .targetSummaryList { position: fixed; top: auto; right: 16px; bottom: 16px; left: 16px; width: auto; max-height: 62vh; }
   .summaryCard:nth-child(2) { border-right: 0; }
   .regionGrid { grid-template-columns: 1fr; }
+  .regulatoryComparison { grid-template-columns: 1fr; }
   .managerGrid { grid-template-columns: 1fr; }
   .managerHeader { flex-direction: column; gap: 20px; }
   .runPanel { align-items: stretch; flex-direction: column; gap: 18px; }
@@ -355,6 +378,10 @@ footer .brandMark { width: 27px; height: 27px; }
   .loginButton { padding: 9px 12px; }
   .hero h1 { font-size: 42px; }
   .summaryGrid { grid-template-columns: 1fr; }
+  .comparisonRegions { grid-template-columns: 1fr; }
+  .comparisonRegions > div { grid-template-columns: 1fr auto auto; min-height: auto; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); }
+  .comparisonRegions > div:last-child { border-bottom: 0; }
+  .regulatoryResult .regulatoryChange { align-items: flex-start; flex-direction: column; }
   .targetSummaryRow { grid-template-columns: 1fr; gap: 5px; }
   .summaryCard { min-height: 145px; border-right: 0; border-bottom: 1px solid var(--line); }
   .literatureCard { grid-template-columns: 34px 1fr; gap: 10px; }

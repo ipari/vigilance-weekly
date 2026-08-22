@@ -188,6 +188,30 @@ export default async function ReportPage({
           </div>
           <span>{regulatory.length}건</span>
         </div>
+        {report.regulatoryComparison && (
+          <div className="regulatoryComparison" aria-label="직전 리포트 대비 규제조치 변화">
+            <div className="comparisonLead">
+              <span>직전 완료 리포트 대비</span>
+              <strong>
+                {report.regulatoryComparison.previousCount}건 → {report.regulatoryComparison.currentCount}건
+              </strong>
+              <small>
+                {report.regulatoryComparison.baseline} 기준 {formatDifference(report.regulatoryComparison.difference)}
+              </small>
+            </div>
+            <div className="comparisonRegions">
+              {report.regulatoryComparison.regions.map((region) => (
+                <div key={region.code}>
+                  <span>{region.name}</span>
+                  <strong>{region.previousCount} → {region.currentCount}건</strong>
+                  <small className={region.difference > 0 ? "increase" : region.difference < 0 ? "decrease" : "same"}>
+                    {formatDifference(region.difference)}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="regulatoryRegionGroups">
           {reportRegions.map((region) => {
             const regionItems = regulatory.filter(
@@ -232,16 +256,32 @@ export default async function ReportPage({
                       </div>
                       <h3>{item.title}</h3>
                       <p>{item.description}</p>
+                      {item.change && (
+                        <p className={`regulatoryChange ${item.change.status}`}>
+                          <strong>{changeLabel(item.change.status)}</strong>
+                          {item.change.summary}
+                        </p>
+                      )}
                       <p className="regulatoryAssessment">
                         <strong>평가</strong> {item.assessment}
                       </p>
-                      {item.matchedTerms.length > 0 && (
-                        <small className="matchedTerms">
-                          일치 검색어: {item.matchedTerms.join(" · ")}
-                        </small>
-                      )}
+                      <div className="regulatorySourceMatch">
+                        {item.officialDocumentName && (
+                          <span>
+                            <strong>공식 자료 대상</strong> {item.officialDocumentName}
+                            {item.revision ? ` · 개정 ${item.revision}판` : ""}
+                          </span>
+                        )}
+                        {item.matchedTerms.length > 0 && (
+                          <small className="matchedTerms">
+                            일치 검색어: {item.matchedTerms.join(" · ")}
+                          </small>
+                        )}
+                      </div>
                       <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-                        공식 자료 보기 ↗
+                        {item.officialDocumentName
+                          ? `${item.officialDocumentName} 공식 자료 보기 ↗`
+                          : "공식 자료 보기 ↗"}
                       </a>
                     </article>
                   ))}
@@ -253,4 +293,18 @@ export default async function ReportPage({
       </section>
     </main>
   );
+}
+
+function formatDifference(value: number) {
+  if (value > 0) return `+${value}건`;
+  if (value < 0) return `${value}건`;
+  return "변화 없음";
+}
+
+function changeLabel(status: "new" | "updated" | "unchanged") {
+  return {
+    new: "새로 포착",
+    updated: "내용 갱신",
+    unchanged: "동일 항목",
+  }[status];
 }
